@@ -1,9 +1,9 @@
 const std = @import("std");
 const Matrix = @import("matrix.zig").Matrix;
-const Sigmoid = @import("sigmoid.zig").Sigmoid;
-const ReLU = @import("relu.zig").ReLU;
-const Softmax = @import("softmax.zig").Softmax;
-const Linear = @import("linear.zig").Linear;
+const Sigmoid = @import("layer/sigmoid.zig").Sigmoid;
+const ReLU = @import("layer/relu.zig").ReLU;
+const Softmax = @import("layer/softmax.zig").Softmax;
+const Linear = @import("layer/linear.zig").Linear;
 const t = std.testing;
 
 const LayerTag = enum {

@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Matrix = @import("matrix.zig").Matrix;
+const Matrix = @import("../matrix.zig").Matrix;
 const t = std.testing;
 const assert = std.debug.assert;
 
