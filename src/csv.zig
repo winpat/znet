@@ -76,7 +76,7 @@ pub fn CsvReader(comptime D: comptime_int) type {
 }
 
 test "Iterate over CSV" {
-    var csv = try CsvReader(',').init(t.allocator, "../data/example.csv");
+    var csv = try CsvReader(',').init(t.allocator, "data/example.csv");
     defer csv.deinit();
 
     csv.skipLine();

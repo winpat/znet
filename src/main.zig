@@ -42,3 +42,7 @@ pub fn main() !void {
     const acc = accuracy(f32, predictions, labels);
     std.debug.print("Accuracy: {d:.3}\n", .{acc});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

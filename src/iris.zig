@@ -47,7 +47,7 @@ pub fn load(allocator: Allocator, path: []const u8) !struct { Matrix(f32), Matri
 }
 
 test "Load iris dataset" {
-    const path = "../data/iris.csv";
+    const path = "data/iris.csv";
     var features, var labels = try load(t.allocator, path);
     defer {
         features.free(t.allocator);
