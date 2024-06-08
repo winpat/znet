@@ -14,3 +14,7 @@ clean:
 # Run test suite
 test:
 	zig build test --summary all
+
+# Run main executable
+run:
+	zig build run
