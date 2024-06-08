@@ -66,9 +66,9 @@ pub fn Layer(comptime T: type) type {
         }
 
         /// Propagate gradient of follow up layers backwards.
-        pub fn backward(self: *Self, input: Matrix(T), labels: Matrix(T), err_grad: Matrix(T)) Matrix(T) {
+        pub fn backward(self: *Self, input: Matrix(T), err_grad: Matrix(T)) Matrix(T) {
             return switch (self.*) {
-                .softmax => |*layer| layer.backward(labels, err_grad),
+                .softmax => |*layer| layer.backward(err_grad),
                 .sigmoid => |*layer| layer.backward(err_grad),
                 inline else => |*layer| layer.backward(input, err_grad),
             };
@@ -93,9 +93,6 @@ test "Backward pass" {
     var input_data = [_]f32{ 1.0, 2.0, 3.0 };
     const input = Matrix(f32).init(1, 3, &input_data);
 
-    var label_data = [_]f32{ 0.0, 0.0, 1.0 };
-    const labels = Matrix(f32).init(1, 3, &label_data);
-
     var err_grad_data = [_]f32{ 0.5, 0.5, 0.5 };
     const err_grad = Matrix(f32).init(1, 3, &err_grad_data);
 
@@ -104,7 +101,7 @@ test "Backward pass" {
     defer layer.deinit();
 
     _ = layer.forward(input);
-    const grad = layer.backward(input, labels, err_grad);
+    const grad = layer.backward(input, err_grad);
 
     try t.expectEqualSlices(f32, grad.elements, &.{ 9.830596e-2, 5.2496813e-2, 2.2588328e-2 });
 }

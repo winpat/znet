@@ -91,7 +91,7 @@ pub fn Network(comptime T: type) type {
         }
 
         /// Propagate gradient through layers and adjust parameters.
-        pub fn backward(self: Self, input: Matrix(T), labels: Matrix(T), grad: Matrix(T), learning_rate: f32) void {
+        pub fn backward(self: Self, input: Matrix(T), grad: Matrix(T), learning_rate: f32) void {
             var i = self.layers.items.len - 1;
             var err_grad = grad;
 
@@ -99,10 +99,10 @@ pub fn Network(comptime T: type) type {
                 var layer = self.layers.items[i];
                 if (i > 0) {
                     const previousLayer = self.layers.items[i - 1];
-                    err_grad = layer.backward(previousLayer.getActivation(), labels, err_grad);
+                    err_grad = layer.backward(previousLayer.getActivation(), err_grad);
                 } else {
                     // TODO Don't compute the input gradient for the first layer.
-                    err_grad = layer.backward(input, labels, err_grad);
+                    err_grad = layer.backward(input, err_grad);
                 }
 
                 if (layer == .linear) {
@@ -135,7 +135,7 @@ pub fn Network(comptime T: type) type {
                     std.debug.print("Forward pass -> Sample: {any} Loss {any}\n", .{ r, loss });
 
                     const err_grad = cost_fn.computeGradient(prediction, y);
-                    self.backward(X, y, err_grad, learning_rate);
+                    self.backward(X, err_grad, learning_rate);
                     std.debug.print("Backward pass -> Sample: {any}\n", .{r});
                 }
             }
