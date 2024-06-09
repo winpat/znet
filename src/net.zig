@@ -125,19 +125,18 @@ pub fn Network(comptime T: type) type {
 
             const num_samples = input.rows;
             for (0..epochs) |e| {
-                std.debug.print("Epoch {any}\n", .{e});
+                var loss_per_epoch: f32 = 0;
 
                 for (0..num_samples) |r| {
                     const X = input.getRow(r);
                     const y = labels.getRow(r);
                     const prediction = self.predict(X);
-                    const loss = cost_fn.computeLoss(prediction, y);
-                    std.debug.print("Forward pass -> Sample: {any} Loss {any}\n", .{ r, loss });
+                    loss_per_epoch += cost_fn.computeLoss(prediction, y);
 
                     const err_grad = cost_fn.computeGradient(prediction, y);
                     self.backward(X, err_grad, learning_rate);
-                    std.debug.print("Backward pass -> Sample: {any}\n", .{r});
                 }
+                std.debug.print("Average loss epoch {d}: {d:.4}\n", .{ e, loss_per_epoch / @as(f32, @floatFromInt(num_samples)) });
             }
         }
     };
