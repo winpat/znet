@@ -135,7 +135,9 @@ pub fn Matrix(comptime T: type) type {
             @memcpy(dest, m.elements);
         }
 
-        /// Split the matrix into two matrices at request row.
+        /// Split the matrix into two at row. Two matrices are returned, the
+        /// first containing all rows up to the dividing row (excluding the
+        /// dividing row) and the second containing the remaining rows.
         pub fn splitOnRow(self: *Self, r: usize) struct { Self, Self } {
             assert(r >= 0 and r < self.rows);
             const divider = r * self.columns;
