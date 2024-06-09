@@ -18,6 +18,10 @@ clean:
 test:
 	zig build test --summary all
 
-# Run main executable
+# Run debug build of main executable
 run:
 	zig build run
+
+# Run release build of main executable
+release:
+	zig build run --release=fast
