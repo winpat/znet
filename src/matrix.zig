@@ -150,6 +150,18 @@ pub fn Matrix(comptime T: type) type {
             return RowIterator(T){ .m = self };
         }
 
+        /// Swap two rows with each other.
+        pub fn swapRows(self: *Self, a: usize, b: usize) void {
+            for (
+                self.elements[a * self.columns .. a * self.columns + self.columns],
+                self.elements[b * self.columns .. b * self.columns + self.columns],
+            ) |*x, *y| {
+                const tmp = x.*;
+                x.* = y.*;
+                y.* = tmp;
+            }
+        }
+
         /// Randomly shuffle rows.
         pub fn shuffleRows(self: *Self) !void {
             var prng = std.rand.DefaultPrng.init(0);
@@ -157,16 +169,7 @@ pub fn Matrix(comptime T: type) type {
 
             var i = self.rows - 1;
             while (i > 0) : (i -= 1) {
-                const new_pos = random.intRangeLessThan(usize, 0, i);
-
-                for (
-                    self.elements[i .. i + self.columns],
-                    self.elements[new_pos .. new_pos + self.columns],
-                ) |*a, *b| {
-                    const tmp = a.*;
-                    a.* = b.*;
-                    b.* = tmp;
-                }
+                self.swapRows(i, random.intRangeLessThan(usize, 0, i));
             }
         }
 
@@ -243,12 +246,20 @@ test "Iterate over matrix rows" {
     try t.expectEqual(row_iterator.next(), null);
 }
 
+test "Swap two rows" {
+    var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var m = Matrix(f32).init(2, 2, &m_e);
+
+    m.swapRows(0, 1);
+    try t.expectEqualSlices(f32, m.elements, &.{ 3.0, 4.0, 1.0, 2.0 });
+}
+
 test "Shuffle matrix" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     var m = Matrix(f32).init(2, 2, &m_e);
 
     try m.shuffleRows();
-    try t.expectEqualSlices(f32, m.elements, &.{ 2.0, 3.0, 1.0, 4.0 });
+    try t.expectEqualSlices(f32, &.{ 3.0, 4.0, 1.0, 2.0 }, m.elements);
 }
 
 test "Split matrix on row" {
