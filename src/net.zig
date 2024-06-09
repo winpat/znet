@@ -123,6 +123,8 @@ pub fn Network(comptime T: type) type {
             var cost_fn = try MeanSquaredError(f32).init(self.allocator, self.outputs);
             defer cost_fn.deinit();
 
+            const start = std.time.milliTimestamp();
+
             const num_samples = input.rows;
             for (0..epochs) |e| {
                 var loss_per_epoch: f32 = 0;
@@ -138,6 +140,10 @@ pub fn Network(comptime T: type) type {
                 }
                 std.debug.print("Average loss epoch {d}: {d:.4}\n", .{ e, loss_per_epoch / @as(f32, @floatFromInt(num_samples)) });
             }
+
+            const end = std.time.milliTimestamp();
+            const duration_seconds: f32 = @as(f32, @floatFromInt(end - start)) / 1000;
+            std.debug.print("Training took {d:.2} seconds.\n", .{duration_seconds});
         }
     };
 }
