@@ -81,13 +81,23 @@ pub fn Network(comptime T: type) type {
             try self.layers.append(layer);
         }
 
-        /// Feed input through all layers.
+        /// Feed a single input through network.
         pub fn predict(self: Self, input: Matrix(T)) Matrix(T) {
             var state = input;
             for (self.layers.items) |*layer| {
                 state = layer.forward(state);
             }
             return state;
+        }
+
+        /// Feed a batch of inputs through the network.
+        pub fn predict_batch(self: Self, batch: Matrix(T)) !Matrix(T) {
+            var predictions = try Matrix(T).alloc(self.allocator, batch.rows, self.outputs, .zeros);
+            for (0..batch.rows) |r| {
+                const prediction = self.predict(batch.getRow(r));
+                predictions.setRow(r, prediction);
+            }
+            return predictions;
         }
 
         /// Propagate gradient through layers and adjust parameters.
@@ -167,11 +177,15 @@ test "Make prediction given inputs" {
     try net.addLayer(Layer(f32){ .linear = l1 });
     try net.addLayer(Layer(f32){ .sigmoid = s1 });
 
-    var input_data = [_]f32{ 1.0, 1.0 };
-    const input = Matrix(f32).init(1, 2, &input_data);
+    var input_data = [_]f32{
+        1.0, 1.0,
+        1.0, 1.0,
+    };
+    const input = Matrix(f32).init(2, 2, &input_data);
 
-    const prediction = net.predict(input);
-    try t.expectEqualSlices(f32, prediction.elements, &.{ 9.5257413e-1, 9.5257413e-1, 9.5257413e-1, 9.5257413e-1 });
+    const prediction = try net.predict_batch(input);
+    try t.expectEqualSlices(f32, prediction.getRow(0).elements, &.{ 9.5257413e-1, 9.5257413e-1, 9.5257413e-1, 9.5257413e-1 });
+    try t.expectEqualSlices(f32, prediction.getRow(1).elements, &.{ 9.5257413e-1, 9.5257413e-1, 9.5257413e-1, 9.5257413e-1 });
 }
 
 test "Train network" {
