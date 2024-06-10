@@ -14,7 +14,7 @@ pub fn main() !void {
     var features, var labels = try iris.load(allocator, "data/iris.csv");
     minMaxNormalize(f32, &features);
 
-    const train_features, const train_labels, const test_features, const test_labels = trainTestSplit(
+    const X_train, const y_train, const X_test, const y_test = trainTestSplit(
         f32,
         &features,
         &labels,
@@ -30,26 +30,10 @@ pub fn main() !void {
     try net.addLinear(3);
     try net.addSoftmax();
 
-    try net.train(300, 0.01, train_features, train_labels);
+    try net.train(300, 0.01, X_train, y_train);
 
-    var predictions = try Matrix(f32).alloc(
-        allocator,
-        test_features.rows,
-        test_labels.columns,
-        .zeros,
-    );
-
-    for (0..test_features.rows) |r| {
-        const X = test_features.getRow(r);
-        const p = net.predict(X);
-
-        // Encode predictions so that the most likely class gets mapped to 0 and
-        // all the other columns to 0.
-        _, const c = ops.argmax(f32, p);
-        predictions.set(r, c, 1.0);
-    }
-
-    const acc = accuracy(f32, predictions, test_labels);
+    const predictions = try net.predict_batch(X_test);
+    const acc = accuracy(f32, predictions, y_test);
     std.debug.print("Accuracy: {d:.3}\n", .{acc});
 }
 
