@@ -106,7 +106,8 @@ pub fn map(comptime T: type, m: *Matrix(T), op: *const fn (T) T) void {
 }
 
 /// Return the row and column of the largest element in a matrix.
-pub fn argmax(comptime T: type, m: Matrix(T)) struct { usize, usize } {
+pub fn argmax(comptime T: type, m: Matrix(T)) usize {
+    assert(m.rows == 1 or m.columns == 1);
     var max_value: T = m.elements[0];
     var index: usize = 0;
     for (m.elements[1..], 1..) |e, idx| {
@@ -115,7 +116,7 @@ pub fn argmax(comptime T: type, m: Matrix(T)) struct { usize, usize } {
             index = idx;
         }
     }
-    return .{ index / m.columns, index % m.columns };
+    return index;
 }
 
 test "Add two matrices together" {
@@ -233,7 +234,7 @@ test "Map unary operation over matrix elements" {
 
 test "Get index highest of largest element in matrix" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    const m = Matrix(f32).init(2, 2, &m_e);
+    const m = Matrix(f32).init(1, 4, &m_e);
 
-    try t.expectEqual(argmax(f32, m), .{ 1, 1 });
+    try t.expectEqual(argmax(f32, m), 3);
 }
