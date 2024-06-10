@@ -3,6 +3,7 @@ const assert = std.debug.assert;
 const Matrix = @import("matrix.zig").Matrix;
 const mem = std.mem;
 const t = std.testing;
+const ops = @import("ops.zig");
 
 /// Compute the accuracy score.
 pub fn accuracy(comptime T: type, predictions: Matrix(T), labels: Matrix(T)) f32 {
@@ -13,7 +14,7 @@ pub fn accuracy(comptime T: type, predictions: Matrix(T), labels: Matrix(T)) f32
     for (0..predictions.rows) |r| {
         const p = predictions.getRow(r);
         const l = labels.getRow(r);
-        if (mem.eql(T, p.elements, l.elements)) {
+        if (ops.argmax(T, p) == ops.argmax(T, l)) {
             true_positives += 1;
         }
     }
@@ -23,10 +24,10 @@ pub fn accuracy(comptime T: type, predictions: Matrix(T), labels: Matrix(T)) f32
 
 test "Compute accuracy score" {
     var prediction_data = [_]f32{
-        1.0, 0.0, 0.0,
-        0.0, 1.0, 0.0,
-        0.0, 0.0, 1.0,
-        0.0, 1.0, 0.0, // False prediction
+        0.9, 0.05, 0.05,
+        0.0, 1.0,  0.0,
+        0.1, 0.6,  1.3,
+        0.4, 0.6, 0.0, // False prediction
     };
     const predictions = Matrix(f32).init(4, 3, &prediction_data);
 
