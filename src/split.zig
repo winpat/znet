@@ -1,7 +1,8 @@
 const std = @import("std");
-const Matrix = @import("matrix.zig").Matrix;
 const assert = std.debug.assert;
 const t = std.testing;
+
+const Matrix = @import("matrix.zig").Matrix;
 
 /// Split features and labels into a train and test set.
 pub fn trainTestSplit(
@@ -16,7 +17,7 @@ pub fn trainTestSplit(
     assert(train_size + test_size == 1);
     assert(features.rows == labels.rows);
 
-    var prng = std.rand.DefaultPrng.init(0);
+    var prng = std.Random.DefaultPrng.init(0);
     const random = prng.random();
 
     var i = features.rows - 1;

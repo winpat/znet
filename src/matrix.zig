@@ -1,6 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const RndGen = std.rand.DefaultPrng;
+const RndGen = std.Random.DefaultPrng;
 const assert = std.debug.assert;
 const t = std.testing;
 
@@ -166,7 +166,7 @@ pub fn Matrix(comptime T: type) type {
 
         /// Randomly shuffle rows.
         pub fn shuffleRows(self: *Self) !void {
-            var prng = std.rand.DefaultPrng.init(0);
+            var prng = std.Random.DefaultPrng.init(0);
             const random = prng.random();
 
             var i = self.rows - 1;

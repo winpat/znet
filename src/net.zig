@@ -1,21 +1,22 @@
-const Allocator = std.mem.Allocator;
-const Matrix = @import("matrix.zig").Matrix;
-const MeanSquaredError = @import("mse.zig").MeanSquaredError;
-const Layer = @import("layer.zig").Layer;
-const Linear = @import("layer.zig").Linear;
-const Sigmoid = @import("layer.zig").Sigmoid;
-const ReLU = @import("layer.zig").ReLU;
-const Softmax = @import("layer.zig").Softmax;
-const assert = std.debug.assert;
 const std = @import("std");
 const t = std.testing;
+const Allocator = std.mem.Allocator;
+const assert = std.debug.assert;
+
+const Layer = @import("layer.zig").Layer;
+const Linear = @import("layer.zig").Linear;
+const Matrix = @import("matrix.zig").Matrix;
+const MeanSquaredError = @import("mse.zig").MeanSquaredError;
+const ReLU = @import("layer.zig").ReLU;
+const Sigmoid = @import("layer.zig").Sigmoid;
+const Softmax = @import("layer.zig").Softmax;
 
 pub fn Network(comptime T: type) type {
     return struct {
         const Self = @This();
 
         allocator: Allocator,
-        layers: std.ArrayList(Layer(T)),
+        layers: std.ArrayList(Layer(T)) = .{},
 
         inputs: usize,
         outputs: usize,
@@ -24,23 +25,22 @@ pub fn Network(comptime T: type) type {
         pub fn init(allocator: Allocator, inputs: usize, outputs: usize) Self {
             return Self{
                 .allocator = allocator,
-                .layers = std.ArrayList(Layer(T)).init(allocator),
                 .inputs = inputs,
                 .outputs = outputs,
             };
         }
 
         /// Free all allocated memory.
-        pub fn deinit(self: Self) void {
+        pub fn deinit(self: *Self) void {
             for (self.layers.items) |*layer| {
                 layer.deinit();
             }
-            self.layers.deinit();
+            self.layers.deinit(self.allocator);
         }
 
         /// Add a layer to the network.
         pub fn addLayer(self: *Self, layer: Layer(T)) !void {
-            try self.layers.append(layer);
+            try self.layers.append(self.allocator, layer);
         }
 
         /// Return number of nodes in the last layer. If the network does not
@@ -54,7 +54,7 @@ pub fn Network(comptime T: type) type {
             const dim = self.numNeuronsOfLastLayer();
             const sigmoid = try Sigmoid(T).init(self.allocator, dim);
             const layer = Layer(T){ .sigmoid = sigmoid };
-            try self.layers.append(layer);
+            try self.layers.append(self.allocator, layer);
         }
 
         /// Add ReLU layer to the network.
@@ -62,7 +62,7 @@ pub fn Network(comptime T: type) type {
             const dim = self.numNeuronsOfLastLayer();
             const relu = try ReLU(T).init(self.allocator, dim);
             const layer = Layer(T){ .relu = relu };
-            try self.layers.append(layer);
+            try self.layers.append(self.allocator, layer);
         }
 
         /// Add softmax layer to the network.
@@ -70,7 +70,7 @@ pub fn Network(comptime T: type) type {
             const dim = self.numNeuronsOfLastLayer();
             const softmax = try Softmax(T).init(self.allocator, dim);
             const layer = Layer(T){ .softmax = softmax };
-            try self.layers.append(layer);
+            try self.layers.append(self.allocator, layer);
         }
 
         /// Add linear layer to the network.
@@ -78,7 +78,7 @@ pub fn Network(comptime T: type) type {
             const inputs = self.numNeuronsOfLastLayer();
             const linear = try Linear(T).rand(self.allocator, inputs, outputs);
             const layer = Layer(T){ .linear = linear };
-            try self.layers.append(layer);
+            try self.layers.append(self.allocator, layer);
         }
 
         /// Feed a single input through network.

@@ -68,7 +68,7 @@ pub fn CsvReader(comptime D: comptime_int) type {
         pub fn nextAs(self: *Self, comptime T: type) !T {
             const v = try self.next();
             return switch (@typeInfo(T)) {
-                .Float => fmt.parseFloat(T, v) catch return CsvReadError.ParseError,
+                .float => fmt.parseFloat(T, v) catch return CsvReadError.ParseError,
                 else => @compileError("Datatype is not implemented."),
             };
         }
