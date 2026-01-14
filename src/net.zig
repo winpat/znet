@@ -46,7 +46,10 @@ pub fn Network(comptime T: type) type {
         /// Return number of nodes in the last layer. If the network does not
         /// have any layer the number of inputs is returned.
         fn numNeuronsOfLastLayer(self: Self) usize {
-            return if (self.layers.items.len > 0) self.layers.getLast().getNumOutputs() else self.inputs;
+            return if (self.layers.items.len > 0)
+                self.layers.getLast().getNumOutputs()
+            else
+                self.inputs;
         }
 
         /// Add sigmoid layer to the network.
@@ -84,14 +87,13 @@ pub fn Network(comptime T: type) type {
         /// Feed a single input through network.
         pub fn predict(self: Self, input: Matrix(T)) Matrix(T) {
             var state = input;
-            for (self.layers.items) |*layer| {
+            for (self.layers.items) |*layer|
                 state = layer.forward(state);
-            }
             return state;
         }
 
         /// Feed a batch of inputs through the network.
-        pub fn predict_batch(self: Self, batch: Matrix(T)) !Matrix(T) {
+        pub fn predictBatch(self: Self, batch: Matrix(T)) !Matrix(T) {
             var predictions = try Matrix(T).alloc(self.allocator, batch.rows, self.outputs, .zeros);
             for (0..batch.rows) |r| {
                 const prediction = self.predict(batch.getRow(r));
@@ -102,24 +104,18 @@ pub fn Network(comptime T: type) type {
 
         /// Propagate gradient through layers and adjust parameters.
         pub fn backward(self: Self, input: Matrix(T), grad: Matrix(T), learning_rate: f32) void {
-            var i = self.layers.items.len - 1;
             var err_grad = grad;
+            var i = self.layers.items.len;
+            while (i > 0) : (i -= 1) {
+                var layer = self.layers.items[i - 1];
 
-            while (true) : (i -= 1) {
-                var layer = self.layers.items[i];
-                if (i > 0) {
-                    const previousLayer = self.layers.items[i - 1];
-                    err_grad = layer.backward(previousLayer.getActivation(), err_grad);
-                } else {
-                    // TODO Don't compute the input gradient for the first layer.
-                    err_grad = layer.backward(input, err_grad);
-                }
+                err_grad = if (i > 1)
+                    layer.backward(self.layers.items[i - 2].getActivation(), err_grad)
+                else
+                    layer.backward(input, err_grad);
 
-                if (layer == .linear) {
+                if (layer == .linear)
                     layer.linear.applyGradients(learning_rate);
-                }
-
-                if (i == 0) break;
             }
         }
 
@@ -151,18 +147,14 @@ pub fn Network(comptime T: type) type {
                 std.debug.print("Average loss epoch {d}: {d:.4}\n", .{ e, loss_per_epoch / @as(f32, @floatFromInt(num_samples)) });
             }
 
-            const end = std.time.milliTimestamp();
-            const duration_seconds: f32 = @as(f32, @floatFromInt(end - start)) / 1000;
-            std.debug.print("Training took {d:.2} seconds.\n", .{duration_seconds});
+            const elapsed_seconds: f32 = @as(f32, @floatFromInt(std.time.milliTimestamp() - start)) / 1000;
+            std.debug.print("Training took {d:.2} seconds.\n", .{elapsed_seconds});
         }
     };
 }
 
 test "Make prediction given inputs" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var net = Network(f32).init(allocator, 2, 4);
+    var net = Network(f32).init(t.allocator, 2, 4);
     defer net.deinit();
 
     const l1_weights = [_]f32{
@@ -170,9 +162,9 @@ test "Make prediction given inputs" {
         1.0, 1.0, 1.0, 1.0,
     };
     const l1_biases = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
-    const l1 = try Linear(f32).init(allocator, 2, 4, &l1_weights, &l1_biases);
+    const l1 = try Linear(f32).init(t.allocator, 2, 4, &l1_weights, &l1_biases);
 
-    const s1 = try Sigmoid(f32).init(allocator, 4);
+    const s1 = try Sigmoid(f32).init(t.allocator, 4);
 
     try net.addLayer(Layer(f32){ .linear = l1 });
     try net.addLayer(Layer(f32){ .sigmoid = s1 });
@@ -183,16 +175,30 @@ test "Make prediction given inputs" {
     };
     const input = Matrix(f32).init(2, 2, &input_data);
 
-    const prediction = try net.predict_batch(input);
-    try t.expectEqualSlices(f32, prediction.getRow(0).elements, &.{ 9.5257413e-1, 9.5257413e-1, 9.5257413e-1, 9.5257413e-1 });
-    try t.expectEqualSlices(f32, prediction.getRow(1).elements, &.{ 9.5257413e-1, 9.5257413e-1, 9.5257413e-1, 9.5257413e-1 });
+    const prediction = try net.predictBatch(input);
+    defer prediction.free(t.allocator);
+
+    try t.expectEqualSlices(
+        f32,
+        prediction.getRow(0).elements,
+        &.{
+            9.5257413e-1, 9.5257413e-1,
+            9.5257413e-1, 9.5257413e-1,
+        },
+    );
+
+    try t.expectEqualSlices(
+        f32,
+        prediction.getRow(1).elements,
+        &.{
+            9.5257413e-1, 9.5257413e-1,
+            9.5257413e-1, 9.5257413e-1,
+        },
+    );
 }
 
 test "Train network" {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-
-    var net = Network(f32).init(allocator, 2, 4);
+    var net = Network(f32).init(t.allocator, 2, 4);
     defer net.deinit();
 
     const l1_weights = [_]f32{
@@ -200,9 +206,9 @@ test "Train network" {
         1.0, 1.0, 1.0, 1.0,
     };
     const l1_biases = [_]f32{ 1.0, 1.0, 1.0, 1.0 };
-    const l1 = try Linear(f32).init(allocator, 2, 4, &l1_weights, &l1_biases);
+    const l1 = try Linear(f32).init(t.allocator, 2, 4, &l1_weights, &l1_biases);
 
-    const s1 = try Sigmoid(f32).init(allocator, 4);
+    const s1 = try Sigmoid(f32).init(t.allocator, 4);
 
     try net.addLayer(Layer(f32){ .linear = l1 });
     try net.addLayer(Layer(f32){ .sigmoid = s1 });

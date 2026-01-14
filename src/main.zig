@@ -1,9 +1,10 @@
 const std = @import("std");
+
+const accuracy = @import("score.zig").accuracy;
 const iris = @import("iris.zig");
-const Network = @import("net.zig").Network;
 const Matrix = @import("matrix.zig").Matrix;
 const minMaxNormalize = @import("scale.zig").minMaxNormalize;
-const accuracy = @import("score.zig").accuracy;
+const Network = @import("net.zig").Network;
 const ops = @import("ops.zig");
 const trainTestSplit = @import("split.zig").trainTestSplit;
 
@@ -32,7 +33,7 @@ pub fn main() !void {
 
     try net.train(300, 0.01, X_train, y_train);
 
-    const predictions = try net.predict_batch(X_test);
+    const predictions = try net.predictBatch(X_test);
     const acc = accuracy(f32, predictions, y_test);
     std.debug.print("Accuracy: {d:.3}\n", .{acc});
 }
