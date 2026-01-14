@@ -9,7 +9,6 @@ pub fn ReLU(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator,
         dim: usize,
 
         activations: Matrix(T),
@@ -18,7 +17,6 @@ pub fn ReLU(comptime T: type) type {
         /// Initialize relu layer.
         pub fn init(allocator: Allocator, dim: usize) !Self {
             return Self{
-                .allocator = allocator,
                 .dim = dim,
                 .activations = try Matrix(T).init(allocator, 1, dim, .zeros),
                 .gradient = try Matrix(T).init(allocator, 1, dim, .zeros),
@@ -26,9 +24,9 @@ pub fn ReLU(comptime T: type) type {
         }
 
         /// Free all allocated memory.
-        pub fn deinit(self: Self) void {
-            self.gradient.deinit(self.allocator);
-            self.activations.deinit(self.allocator);
+        pub fn deinit(self: Self, allocator: Allocator) void {
+            self.gradient.deinit(allocator);
+            self.activations.deinit(allocator);
         }
 
         pub fn format(
@@ -70,7 +68,7 @@ test "ReLU forward pass" {
     const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     var relu = try ReLU(f32).init(t.allocator, 3);
-    defer relu.deinit();
+    defer relu.deinit(t.allocator);
 
     const prediction = relu.forward(input);
 
@@ -85,7 +83,7 @@ test "ReLU backward pass" {
     const err_grad = Matrix(f32).fromSlice(1, 3, &err_grad_data);
 
     const relu = try ReLU(f32).init(t.allocator, 3);
-    defer relu.deinit();
+    defer relu.deinit(t.allocator);
 
     const grad = relu.backward(input, err_grad);
 

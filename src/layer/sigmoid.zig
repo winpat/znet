@@ -9,7 +9,6 @@ pub fn Sigmoid(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator,
         dim: usize,
 
         activations: Matrix(T),
@@ -18,7 +17,6 @@ pub fn Sigmoid(comptime T: type) type {
         /// Initalize sigmoid layer
         pub fn init(allocator: Allocator, dim: usize) !Self {
             return Self{
-                .allocator = allocator,
                 .dim = dim,
                 .activations = try Matrix(T).init(allocator, 1, dim, .zeros),
                 .gradient = try Matrix(T).init(allocator, 1, dim, .zeros),
@@ -26,9 +24,9 @@ pub fn Sigmoid(comptime T: type) type {
         }
 
         /// Free all allocated memory.
-        pub fn deinit(self: Self) void {
-            self.gradient.deinit(self.allocator);
-            self.activations.deinit(self.allocator);
+        pub fn deinit(self: Self, allocator: Allocator) void {
+            self.gradient.deinit(allocator);
+            self.activations.deinit(allocator);
         }
 
         pub fn format(
@@ -86,7 +84,7 @@ test "Sigmoid forward pass" {
     const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     var sigmoid = try Sigmoid(f32).init(t.allocator, 3);
-    defer sigmoid.deinit();
+    defer sigmoid.deinit(t.allocator);
 
     const prediction = sigmoid.forward(input);
 
@@ -120,7 +118,7 @@ test "Sigmoid backward pass" {
     const err_grad = Matrix(f32).fromSlice(1, 3, &err_grad_data);
 
     var sigmoid = try Sigmoid(f32).init(t.allocator, 3);
-    defer sigmoid.deinit();
+    defer sigmoid.deinit(t.allocator);
 
     _ = sigmoid.forward(input);
     const grad = sigmoid.backward(err_grad);

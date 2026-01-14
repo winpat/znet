@@ -10,7 +10,6 @@ pub fn Softmax(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator,
         dim: usize,
 
         activations: Matrix(T),
@@ -20,7 +19,6 @@ pub fn Softmax(comptime T: type) type {
         /// Initialize softmax layer.
         pub fn init(allocator: Allocator, dim: usize) !Self {
             return Self{
-                .allocator = allocator,
                 .dim = dim,
                 .activations = try Matrix(T).init(allocator, 1, dim, .zeros),
                 .gradient = try Matrix(T).init(allocator, 1, dim, .zeros),
@@ -29,10 +27,10 @@ pub fn Softmax(comptime T: type) type {
         }
 
         /// Free all allocated memory.
-        pub fn deinit(self: Self) void {
-            self.gradient.deinit(self.allocator);
-            self.jacobian.deinit(self.allocator);
-            self.activations.deinit(self.allocator);
+        pub fn deinit(self: Self, allocator: Allocator) void {
+            self.gradient.deinit(allocator);
+            self.jacobian.deinit(allocator);
+            self.activations.deinit(allocator);
         }
 
         pub fn format(
@@ -81,7 +79,7 @@ test "Softmax forward pass" {
     const input = Matrix(f32).fromSlice(1, 2, &input_data);
 
     var softmax = try Softmax(f32).init(t.allocator, 2);
-    defer softmax.deinit();
+    defer softmax.deinit(t.allocator);
 
     const prediction = softmax.forward(input);
 
@@ -100,7 +98,7 @@ test "Softmax backward pass" {
     const err_grad = Matrix(f32).fromSlice(1, 2, &err_grad_data);
 
     var softmax = try Softmax(f32).init(t.allocator, 2);
-    defer softmax.deinit();
+    defer softmax.deinit(t.allocator);
 
     _ = softmax.forward(input);
     const grad = softmax.backward(err_grad);

@@ -33,7 +33,7 @@ pub fn Network(comptime T: type) type {
         /// Free all allocated memory.
         pub fn deinit(self: *Self) void {
             for (self.layers.items) |*layer| {
-                layer.deinit();
+                layer.deinit(self.allocator);
             }
             self.layers.deinit(self.allocator);
         }

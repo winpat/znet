@@ -1,5 +1,6 @@
 const std = @import("std");
 const t = std.testing;
+const Allocator = std.mem.Allocator;
 
 pub const Linear = @import("layer/linear.zig").Linear;
 pub const ReLU = @import("layer/relu.zig").ReLU;
@@ -24,9 +25,9 @@ pub fn Layer(comptime T: type) type {
         softmax: Softmax(T),
 
         /// Free all allocated memory.
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Self, allocator: Allocator) void {
             switch (self.*) {
-                inline else => |*layer| layer.deinit(),
+                inline else => |*layer| layer.deinit(allocator),
             }
         }
 
@@ -53,7 +54,7 @@ pub fn Layer(comptime T: type) type {
         /// Return number of output nodes.
         pub fn getNumOutputs(self: Self) usize {
             return switch (self) {
-                .linear => |layer| layer.outputs,
+                .linear => |layer| layer.activations.columns,
                 inline else => |layer| layer.dim,
             };
         }
@@ -82,7 +83,7 @@ test "Forward pass" {
 
     const sigmoid = try Sigmoid(f32).init(t.allocator, 3);
     var layer = Layer(f32){ .sigmoid = sigmoid };
-    defer layer.deinit();
+    defer layer.deinit(t.allocator);
 
     const prediction = layer.forward(input);
 
@@ -98,7 +99,7 @@ test "Backward pass" {
 
     const sigmoid = try Sigmoid(f32).init(t.allocator, 3);
     var layer = Layer(f32){ .sigmoid = sigmoid };
-    defer layer.deinit();
+    defer layer.deinit(t.allocator);
 
     _ = layer.forward(input);
     const grad = layer.backward(input, err_grad);

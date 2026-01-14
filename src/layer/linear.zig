@@ -10,27 +10,21 @@ pub fn Linear(comptime T: type) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator,
-
         /// A 1xO matrix holding the current activations of the neurons.
         activations: Matrix(T),
 
         /// A IxO matrix where columns holds the weights connecting a neuron to
         /// the ones in the previous layer.
         weights: Matrix(T),
+        weights_grad: Matrix(T),
+        weights_t: Matrix(T),
 
         /// A 1xO matrix where each rows hold the bias of the layers neurons.
         biases: Matrix(T),
+        biases_grad: Matrix(T),
 
-        gradient_weights: Matrix(T),
-        gradient_biases: Matrix(T),
-        gradient_inputs: Matrix(T),
-
-        /// Input dimension of the layer (number of nodes of the previous layer).
-        inputs: usize,
-
-        /// Output dimension of the layer (number of nodes in current layer).
-        outputs: usize,
+        inputs_grad: Matrix(T),
+        inputs_t: Matrix(T),
 
         /// Initialize linear layer from existing weights and biases.
         pub fn init(allocator: Allocator, inputs: usize, outputs: usize, weights: []const T, biases: []const T) !Self {
@@ -38,41 +32,41 @@ pub fn Linear(comptime T: type) type {
             assert(outputs == biases.len);
 
             return Self{
-                .allocator = allocator,
-                .inputs = inputs,
-                .outputs = outputs,
                 .activations = try Matrix(T).init(allocator, 1, outputs, .zeros),
                 .weights = try Matrix(T).initFromSlice(allocator, inputs, outputs, weights),
+                .weights_grad = try Matrix(T).init(allocator, inputs, outputs, .zeros),
+                .weights_t = try Matrix(T).initFromSlice(allocator, outputs, inputs, weights),
                 .biases = try Matrix(T).initFromSlice(allocator, 1, outputs, biases),
-                .gradient_weights = try Matrix(T).init(allocator, inputs, outputs, .zeros),
-                .gradient_biases = try Matrix(T).init(allocator, 1, outputs, .zeros),
-                .gradient_inputs = try Matrix(T).init(allocator, 1, inputs, .zeros),
+                .biases_grad = try Matrix(T).init(allocator, 1, outputs, .zeros),
+                .inputs_grad = try Matrix(T).init(allocator, 1, inputs, .zeros),
+                .inputs_t = try Matrix(T).init(allocator, inputs, 1, .zeros),
             };
         }
 
         /// Randomly initalize linear layer.
         pub fn rand(allocator: Allocator, inputs: usize, outputs: usize) !Self {
             return Self{
-                .allocator = allocator,
-                .inputs = inputs,
-                .outputs = outputs,
                 .activations = try Matrix(T).init(allocator, 1, outputs, .zeros),
                 .weights = try Matrix(T).init(allocator, inputs, outputs, .rand),
+                .weights_grad = try Matrix(T).init(allocator, inputs, outputs, .zeros),
+                .weights_t = try Matrix(T).init(allocator, outputs, inputs, .rand),
                 .biases = try Matrix(T).init(allocator, 1, outputs, .rand),
-                .gradient_weights = try Matrix(T).init(allocator, inputs, outputs, .zeros),
-                .gradient_biases = try Matrix(T).init(allocator, 1, outputs, .zeros),
-                .gradient_inputs = try Matrix(T).init(allocator, 1, inputs, .zeros),
+                .biases_grad = try Matrix(T).init(allocator, 1, outputs, .zeros),
+                .inputs_grad = try Matrix(T).init(allocator, 1, inputs, .zeros),
+                .inputs_t = try Matrix(T).init(allocator, inputs, 1, .zeros),
             };
         }
 
         /// Free all allocated memory.
-        pub fn deinit(self: Self) void {
-            self.activations.deinit(self.allocator);
-            self.weights.deinit(self.allocator);
-            self.biases.deinit(self.allocator);
-            self.gradient_weights.deinit(self.allocator);
-            self.gradient_biases.deinit(self.allocator);
-            self.gradient_inputs.deinit(self.allocator);
+        pub fn deinit(self: Self, allocator: Allocator) void {
+            self.activations.deinit(allocator);
+            self.weights.deinit(allocator);
+            self.weights_grad.deinit(allocator);
+            self.weights_t.deinit(allocator);
+            self.biases.deinit(allocator);
+            self.biases_grad.deinit(allocator);
+            self.inputs_grad.deinit(allocator);
+            self.inputs_t.deinit(allocator);
         }
 
         pub fn format(
@@ -86,9 +80,9 @@ pub fn Linear(comptime T: type) type {
             try writer.print("Linear(i={} o={} g_w={} g_b={} g_i={})", .{
                 self.inputs,
                 self.outputs,
-                self.gradient_weights,
-                self.gradient_biases,
-                self.gradient_inputs,
+                self.weights_grad,
+                self.biases_grad,
+                self.inputs_grad,
             });
         }
 
@@ -102,28 +96,26 @@ pub fn Linear(comptime T: type) type {
         /// Compute input, weight and bias gradients given upstream gradient of
         /// the followup layers.
         pub fn backward(self: *Self, input: Matrix(T), err_grad: Matrix(T)) Matrix(T) {
-            // dC_db
-            self.gradient_biases.copy(err_grad);
+            // dC/db = err_grad
+            self.biases_grad.copy(err_grad);
 
-            // dC_dw
-            const i_t = input.allocTranspose(self.allocator) catch unreachable;
-            defer i_t.deinit(self.allocator);
-            ops.multiply(f32, i_t, err_grad, &self.gradient_weights);
+            // dC/dw = input^T @ err_grad
+            input.transpose(&self.inputs_t);
+            self.inputs_t.multiply(err_grad, &self.weights_grad);
 
-            // dC_di
-            const w_t = self.weights.allocTranspose(self.allocator) catch unreachable;
-            defer w_t.deinit(self.allocator);
-            ops.multiply(f32, err_grad, w_t, &self.gradient_inputs);
+            // dC/di = err_grad @ weights^T
+            self.weights.transpose(&self.weights_t);
+            err_grad.multiply(self.weights_t, &self.inputs_grad);
 
-            return self.gradient_inputs;
+            return self.inputs_grad;
         }
 
         // Apply weight and bias gradients to layer.
         pub fn applyGradients(self: *Self, learning_rate: f32) void {
-            for (self.weights.elements, self.gradient_weights.elements) |*w, g| {
+            for (self.weights.elements, self.weights_grad.elements) |*w, g| {
                 w.* += g * learning_rate;
             }
-            for (self.biases.elements, self.gradient_biases.elements) |*b, g| {
+            for (self.biases.elements, self.biases_grad.elements) |*b, g| {
                 b.* += g * learning_rate;
             }
         }
@@ -159,7 +151,7 @@ test "Linear forward pass" {
     const biases = &.{ 1.0, 1.0, 1.0, 1.0 };
 
     var layer = try Linear(f32).init(t.allocator, 2, 4, weights, biases);
-    defer layer.deinit();
+    defer layer.deinit(t.allocator);
 
     const prediction = layer.forward(features);
 
@@ -214,7 +206,7 @@ test "Linear backward pass" {
     var biases = [_]f32{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 };
 
     var linear = try Linear(f32).init(t.allocator, 4, 6, &weights, &biases);
-    defer linear.deinit();
+    defer linear.deinit(t.allocator);
 
     // The first row of the iris dataset.
     const features = [_]f32{ 5.1, 3.5, 1.4, 0.2 };
@@ -228,8 +220,8 @@ test "Linear backward pass" {
     const grad = linear.backward(input, err_grad);
 
     try t.expectEqualSlices(f32, grad.elements, &.{ 3.1999998e-2, 6.0000002e-2, 9.5e-2, 1.095 });
-    try t.expectEqualSlices(f32, linear.gradient_biases.elements, &.{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 });
-    try t.expectEqualSlices(f32, linear.gradient_weights.elements, &.{
+    try t.expectEqualSlices(f32, linear.biases_grad.elements, &.{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 });
+    try t.expectEqualSlices(f32, linear.weights_grad.elements, &.{
         5.1e-1,       1.02e0,       1.5300001e0,  2.04e0,       2.55e0, 3.0600002e0,
         3.5e-1,       7e-1,         1.0500001e0,  1.4e0,        1.75e0, 2.1000001e0,
         1.4e-1,       2.8e-1,       4.2000002e-1, 5.6e-1,       7e-1,   8.4000003e-1,

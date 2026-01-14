@@ -43,24 +43,6 @@ pub fn Matrix(comptime T: type) type {
             return Self.fromSlice(rows, columns, elements);
         }
 
-        /// Transpose elements and store them in a newly allocated matrix.
-        pub fn allocTranspose(self: Self, allocator: Allocator) !Matrix(T) {
-            var transpose = Self.fromSlice(
-                self.columns,
-                self.rows,
-                try allocator.alloc(T, self.rows * self.columns),
-            );
-
-            for (0..self.rows) |r| {
-                for (0..self.columns) |c| {
-                    const e = self.get(r, c);
-                    transpose.set(c, r, e);
-                }
-            }
-
-            return transpose;
-        }
-
         /// Release all allocated memory.
         pub fn deinit(self: Self, allocator: Allocator) void {
             allocator.free(self.elements);
@@ -188,6 +170,61 @@ pub fn Matrix(comptime T: type) type {
         /// Print the matrix including it's elements. Useful for debugging.
         pub fn print(self: Self) void {
             std.debug.print("{d}x{d} - {any}\n", .{ self.rows, self.columns, self.elements });
+        }
+
+        /// Transpose elements into other matrix.
+        pub fn transpose(self: Self, other: *Matrix(T)) void {
+            assert(self.rows == other.columns);
+            assert(self.columns == other.rows);
+
+            for (0..self.rows) |r| {
+                for (0..self.columns) |c| {
+                    const e = self.get(r, c);
+                    other.set(c, r, e);
+                }
+            }
+        }
+
+        /// Transpose elements and store them in a newly allocated matrix.
+        pub fn allocTranspose(self: Self, allocator: Allocator) !Matrix(T) {
+            var result = Self.fromSlice(
+                self.columns,
+                self.rows,
+                try allocator.alloc(T, self.rows * self.columns),
+            );
+            self.transpose(&result);
+            return result;
+        }
+
+        /// Multiply two matrices with each other.
+        ///
+        /// For this to work the number of columns of the first matrix needs to
+        /// be equal to the number of rows in the second matrix.
+        ///
+        /// The resulting matrix will have the number of rows of the first matrix
+        /// and the number columns of the second matrix.
+        ///
+        /// MxN * NxP = MxP
+        ///
+        ///                 [ y1 y4 ]
+        ///  [ x1 x2 x3 ] * [ y2 y5 ] = [ x1*y1+x2*y2+x3*y3, x1*y4+x2*y5+x3*y6 ]
+        ///  [ x4 x5 x6 ]   [ y3 y6 ]   [ x4*y1+x5*y2+x6*y3, x4*y4+x5*y5+x6*y6 ]
+        ///
+        pub fn multiply(self: Self, other: Self, result: *Self) void {
+            for (0..self.rows) |i| {
+                for (0..other.columns) |j| {
+                    var v: T = 0;
+                    for (0..self.columns) |k| {
+                        v += self.get(i, k) * other.get(k, j);
+                    }
+                    result.set(i, j, v);
+                }
+            }
+        }
+
+        pub fn add(self: Self, other: Self, result: *Self) !void {
+            for (self.elements, other.elements, 0..) |a, b, idx|
+                result.elements[idx] = a + b;
         }
     };
 }
