@@ -41,9 +41,9 @@ pub fn Linear(comptime T: type) type {
                 .allocator = allocator,
                 .inputs = inputs,
                 .outputs = outputs,
-                .weights = try Matrix(T).allocFromSlice(allocator, inputs, outputs, weights),
-                .biases = try Matrix(T).allocFromSlice(allocator, 1, outputs, biases),
                 .activations = try Matrix(T).init(allocator, 1, outputs, .zeros),
+                .weights = try Matrix(T).initFromSlice(allocator, inputs, outputs, weights),
+                .biases = try Matrix(T).initFromSlice(allocator, 1, outputs, biases),
                 .gradient_weights = try Matrix(T).init(allocator, inputs, outputs, .zeros),
                 .gradient_biases = try Matrix(T).init(allocator, 1, outputs, .zeros),
                 .gradient_inputs = try Matrix(T).init(allocator, 1, inputs, .zeros),
@@ -56,12 +56,12 @@ pub fn Linear(comptime T: type) type {
                 .allocator = allocator,
                 .inputs = inputs,
                 .outputs = outputs,
-                .activations = try Matrix(T).alloc(allocator, 1, outputs, .zeros),
-                .weights = try Matrix(T).alloc(allocator, inputs, outputs, .rand),
-                .biases = try Matrix(T).alloc(allocator, 1, outputs, .rand),
-                .gradient_weights = try Matrix(T).alloc(allocator, inputs, outputs, .zeros),
-                .gradient_biases = try Matrix(T).alloc(allocator, 1, outputs, .zeros),
-                .gradient_inputs = try Matrix(T).alloc(allocator, 1, inputs, .zeros),
+                .activations = try Matrix(T).init(allocator, 1, outputs, .zeros),
+                .weights = try Matrix(T).init(allocator, inputs, outputs, .rand),
+                .biases = try Matrix(T).init(allocator, 1, outputs, .rand),
+                .gradient_weights = try Matrix(T).init(allocator, inputs, outputs, .zeros),
+                .gradient_biases = try Matrix(T).init(allocator, 1, outputs, .zeros),
+                .gradient_inputs = try Matrix(T).init(allocator, 1, inputs, .zeros),
             };
         }
 
@@ -218,11 +218,11 @@ test "Linear backward pass" {
 
     // The first row of the iris dataset.
     const features = [_]f32{ 5.1, 3.5, 1.4, 0.2 };
-    const input = try Matrix(f32).allocFromSlice(t.allocator, 1, 4, &features);
+    const input = try Matrix(f32).initFromSlice(t.allocator, 1, 4, &features);
     defer input.deinit(t.allocator);
 
     const err_grad_data = [_]f32{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 };
-    var err_grad = try Matrix(f32).allocFromSlice(t.allocator, 1, 6, &err_grad_data);
+    var err_grad = try Matrix(f32).initFromSlice(t.allocator, 1, 6, &err_grad_data);
     defer err_grad.deinit(t.allocator);
 
     const grad = linear.backward(input, err_grad);

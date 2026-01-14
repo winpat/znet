@@ -37,7 +37,7 @@ pub fn Matrix(comptime T: type) type {
 
         /// Allocate a matrix and initalize it with a copy data in passed slice.
         /// The length of the slice needs to match the number of elements.
-        pub fn allocFromSlice(allocator: Allocator, rows: usize, columns: usize, data: []const T) !Self {
+        pub fn initFromSlice(allocator: Allocator, rows: usize, columns: usize, data: []const T) !Self {
             const elements = try allocator.alloc(T, rows * columns);
             @memcpy(elements, data);
             return Self.fromSlice(rows, columns, elements);
@@ -299,7 +299,7 @@ test "Allocate matrix and initalize with random numbers" {
 test "Allocate matrix and initalize it from slice" {
     const data = [_]f32{ 2.0, 3.0 };
 
-    var m = try Matrix(f32).allocFromSlice(t.allocator, 1, 2, &data);
+    var m = try Matrix(f32).initFromSlice(t.allocator, 1, 2, &data);
     defer m.deinit(t.allocator);
 
     try t.expectEqual(m.rows, 1);
@@ -313,7 +313,7 @@ test "Transpose matrix elements" {
         4.0, 5.0, 6.0,
     };
 
-    var m = try Matrix(f32).allocFromSlice(t.allocator, 2, 3, &data);
+    var m = try Matrix(f32).initFromSlice(t.allocator, 2, 3, &data);
     defer m.deinit(t.allocator);
 
     const transpose = try m.allocTranspose(t.allocator);
