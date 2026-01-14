@@ -93,15 +93,31 @@ pub fn Linear(comptime T: type) type {
             return self.activations;
         }
 
-        /// Compute input, weight and bias gradients given upstream gradient of
-        /// the followup layers.
-        pub fn backward(self: *Self, input: Matrix(T), err_grad: Matrix(T)) Matrix(T) {
-            // dC/db = err_grad
-            self.biases_grad.copy(err_grad);
+        /// Zero out accumulated gradients. Call this at the start of each batch.
+        pub fn zeroGradients(self: *Self) void {
+            self.weights_grad.zeros();
+            self.biases_grad.zeros();
+        }
 
-            // dC/dw = input^T @ err_grad
+        /// Compute input, weight and bias gradients given upstream gradient of
+        /// the followup layers. Gradients are accumulated (added to existing).
+        pub fn backward(self: *Self, input: Matrix(T), err_grad: Matrix(T)) Matrix(T) {
+            // dC/db = err_grad (accumulate)
+            for (self.biases_grad.elements, err_grad.elements) |*bg, eg| {
+                bg.* += eg;
+            }
+
+            // dC/dw = input^T @ err_grad (accumulate)
             input.transpose(&self.inputs_t);
-            self.inputs_t.multiply(err_grad, &self.weights_grad);
+            for (0..self.inputs_t.rows) |i| {
+                for (0..err_grad.columns) |j| {
+                    var v: T = 0;
+                    for (0..self.inputs_t.columns) |k| {
+                        v += self.inputs_t.get(i, k) * err_grad.get(k, j);
+                    }
+                    self.weights_grad.set(i, j, self.weights_grad.get(i, j) + v);
+                }
+            }
 
             // dC/di = err_grad @ weights^T
             self.weights.transpose(&self.weights_t);
@@ -110,13 +126,15 @@ pub fn Linear(comptime T: type) type {
             return self.inputs_grad;
         }
 
-        // Apply weight and bias gradients to layer.
-        pub fn applyGradients(self: *Self, learning_rate: f32) void {
+        /// Apply accumulated weight and bias gradients to layer, scaled by
+        /// learning rate and batch size.
+        pub fn applyGradients(self: *Self, learning_rate: f32, batch_size: usize) void {
+            const scale = learning_rate / @as(f32, @floatFromInt(batch_size));
             for (self.weights.elements, self.weights_grad.elements) |*w, g| {
-                w.* += g * learning_rate;
+                w.* += g * scale;
             }
             for (self.biases.elements, self.biases_grad.elements) |*b, g| {
-                b.* += g * learning_rate;
+                b.* += g * scale;
             }
         }
     };
