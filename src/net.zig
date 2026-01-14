@@ -110,7 +110,7 @@ pub fn Network(comptime T: type) type {
                 var layer = self.layers.items[i - 1];
 
                 err_grad = if (i > 1)
-                    layer.backward(self.layers.items[i - 2].getActivation(), err_grad)
+                    layer.backward(self.layers.items[i - 2].activation(), err_grad)
                 else
                     layer.backward(input, err_grad);
 

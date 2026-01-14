@@ -44,7 +44,7 @@ pub fn Layer(comptime T: type) type {
         }
 
         /// Return the current activation.
-        pub fn getActivation(self: Self) Matrix(T) {
+        pub fn activation(self: Self) Matrix(T) {
             return switch (self) {
                 inline else => |layer| layer.activations,
             };
