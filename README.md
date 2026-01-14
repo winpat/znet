@@ -20,7 +20,7 @@ try net.addReLU();
 try net.addLinear(3);
 try net.addSoftmax();
 
-try net.train(300, 0.01, features, labels);
+try net.train(300, 0.01, 32, features, labels);
 ```
 
 ## Development

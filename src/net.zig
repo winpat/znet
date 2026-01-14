@@ -102,8 +102,16 @@ pub fn Network(comptime T: type) type {
             return predictions;
         }
 
-        /// Propagate gradient through layers and adjust parameters.
-        pub fn backward(self: Self, input: Matrix(T), grad: Matrix(T), learning_rate: f32) void {
+        /// Zero gradients in all linear layers. Call at start of each batch.
+        pub fn zeroGradients(self: Self) void {
+            for (self.layers.items) |*layer| {
+                if (layer.* == .linear)
+                    layer.linear.zeroGradients();
+            }
+        }
+
+        /// Propagate gradient through layers (accumulates gradients).
+        pub fn backward(self: Self, input: Matrix(T), grad: Matrix(T)) void {
             var err_grad = grad;
             var i = self.layers.items.len;
             while (i > 0) : (i -= 1) {
@@ -113,17 +121,23 @@ pub fn Network(comptime T: type) type {
                     layer.backward(self.layers.items[i - 2].activation(), err_grad)
                 else
                     layer.backward(input, err_grad);
-
-                if (layer == .linear)
-                    layer.linear.applyGradients(learning_rate);
             }
         }
 
-        /// Train the network for fixed number of epochs.
-        pub fn train(self: Self, epochs: usize, learning_rate: f32, input: Matrix(T), labels: Matrix(T), writer: *std.Io.Writer) !void {
+        /// Apply accumulated gradients to all linear layers.
+        pub fn applyGradients(self: Self, learning_rate: f32, batch_size: usize) void {
+            for (self.layers.items) |*layer| {
+                if (layer.* == .linear)
+                    layer.linear.applyGradients(learning_rate, batch_size);
+            }
+        }
+
+        /// Train the network for fixed number of epochs using mini-batch gradient descent.
+        pub fn train(self: Self, epochs: usize, learning_rate: f32, batch_size: usize, input: Matrix(T), labels: Matrix(T), writer: *std.Io.Writer) !void {
             assert(input.rows == labels.rows);
             assert(input.columns == self.inputs);
             assert(labels.columns == self.outputs);
+            assert(batch_size > 0);
 
             // TODO Make loss function configurable
             var cost_fn = try MeanSquaredError(f32).init(self.allocator, self.outputs);
@@ -135,14 +149,30 @@ pub fn Network(comptime T: type) type {
             for (0..epochs) |e| {
                 var loss_per_epoch: f32 = 0;
 
-                for (0..num_samples) |r| {
-                    const X = input.getRow(r);
-                    const y = labels.getRow(r);
-                    const prediction = self.predict(X);
-                    loss_per_epoch += cost_fn.computeLoss(prediction, y);
+                // Process data in mini-batches
+                var batch_start: usize = 0;
+                while (batch_start < num_samples) {
+                    const batch_end = @min(batch_start + batch_size, num_samples);
+                    const current_batch_size = batch_end - batch_start;
 
-                    const err_grad = cost_fn.computeGradient(prediction, y);
-                    self.backward(X, err_grad, learning_rate);
+                    // Zero gradients at start of batch
+                    self.zeroGradients();
+
+                    // Accumulate gradients over batch
+                    for (batch_start..batch_end) |r| {
+                        const X = input.getRow(r);
+                        const y = labels.getRow(r);
+                        const prediction = self.predict(X);
+                        loss_per_epoch += cost_fn.computeLoss(prediction, y);
+
+                        const err_grad = cost_fn.computeGradient(prediction, y);
+                        self.backward(X, err_grad);
+                    }
+
+                    // Apply accumulated gradients once per batch
+                    self.applyGradients(learning_rate, current_batch_size);
+
+                    batch_start = batch_end;
                 }
 
                 const avg_loss_per_epoch = loss_per_epoch / @as(f32, @floatFromInt(num_samples));
@@ -151,7 +181,7 @@ pub fn Network(comptime T: type) type {
             }
 
             const elapsed_seconds: f32 = @as(f32, @floatFromInt(std.time.milliTimestamp() - start)) / 1000;
-            try writer.print("Training took {d:.2} seconds.\n", .{elapsed_seconds});
+            try writer.print("Training took {d:.2} seconds (batch_size={d}).\n", .{ elapsed_seconds, batch_size });
             try writer.flush();
         }
     };
@@ -224,5 +254,5 @@ test "Train network" {
     const labels = Matrix(f32).fromSlice(1, 4, &labels_data);
 
     var discarding = std.Io.Writer.Discarding.init(&.{});
-    try net.train(40, 0.001, input, labels, &discarding.writer);
+    try net.train(40, 0.001, 1, input, labels, &discarding.writer);
 }

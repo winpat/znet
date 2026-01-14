@@ -35,7 +35,7 @@ pub fn main() !void {
     try net.addLinear(3);
     try net.addSoftmax();
 
-    try net.train(300, 0.01, X_train, y_train, stdout);
+    try net.train(300, 0.01, 32, X_train, y_train, stdout);
 
     const predictions = try net.predictBatch(X_test);
     const acc = accuracy(f32, predictions, y_test);
