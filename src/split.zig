@@ -64,8 +64,6 @@ test "Create test train split" {
         0.25,
     );
 
-    train_features.print();
-
     try t.expectEqual(train_features.rows, 3);
     try t.expectEqual(train_labels.rows, 3);
     try t.expectEqual(test_features.rows, 1);

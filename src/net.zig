@@ -120,7 +120,7 @@ pub fn Network(comptime T: type) type {
         }
 
         /// Train the network for fixed number of epochs.
-        pub fn train(self: Self, epochs: usize, learning_rate: f32, input: Matrix(T), labels: Matrix(T)) !void {
+        pub fn train(self: Self, epochs: usize, learning_rate: f32, input: Matrix(T), labels: Matrix(T), writer: *std.Io.Writer) !void {
             assert(input.rows == labels.rows);
             assert(input.columns == self.inputs);
             assert(labels.columns == self.outputs);
@@ -144,11 +144,15 @@ pub fn Network(comptime T: type) type {
                     const err_grad = cost_fn.computeGradient(prediction, y);
                     self.backward(X, err_grad, learning_rate);
                 }
-                std.debug.print("Average loss epoch {d}: {d:.4}\n", .{ e, loss_per_epoch / @as(f32, @floatFromInt(num_samples)) });
+
+                const avg_loss_per_epoch = loss_per_epoch / @as(f32, @floatFromInt(num_samples));
+                try writer.print("Average loss epoch {d}: {d:.4}\n", .{ e, avg_loss_per_epoch });
+                try writer.flush();
             }
 
             const elapsed_seconds: f32 = @as(f32, @floatFromInt(std.time.milliTimestamp() - start)) / 1000;
-            std.debug.print("Training took {d:.2} seconds.\n", .{elapsed_seconds});
+            try writer.print("Training took {d:.2} seconds.\n", .{elapsed_seconds});
+            try writer.flush();
         }
     };
 }
@@ -219,5 +223,6 @@ test "Train network" {
     var labels_data = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
     const labels = Matrix(f32).init(1, 4, &labels_data);
 
-    try net.train(40, 0.001, input, labels);
+    var discarding = std.Io.Writer.Discarding.init(&.{});
+    try net.train(40, 0.001, input, labels, &discarding.writer);
 }

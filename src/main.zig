@@ -12,6 +12,10 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
+    var buf = [_]u8{0} ** 1024;
+    var stdout_writer = std.fs.File.stdout().writer(&buf);
+    const stdout = &stdout_writer.interface;
+
     var features, var labels = try iris.load(allocator, "data/iris.csv");
     minMaxNormalize(f32, &features);
 
@@ -31,7 +35,7 @@ pub fn main() !void {
     try net.addLinear(3);
     try net.addSoftmax();
 
-    try net.train(300, 0.01, X_train, y_train);
+    try net.train(300, 0.01, X_train, y_train, stdout);
 
     const predictions = try net.predictBatch(X_test);
     const acc = accuracy(f32, predictions, y_test);
