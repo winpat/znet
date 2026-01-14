@@ -17,8 +17,8 @@ pub fn Matrix(comptime T: type) type {
         columns: usize,
         elements: []T = undefined,
 
-        /// Allocate and initalize matrix. Matrix needs to be freed by the owner.
-        pub fn alloc(allocator: Allocator, rows: usize, columns: usize, init_strategy: InitStrategy) !Self {
+        /// Initalize matrix.
+        pub fn init(allocator: Allocator, rows: usize, columns: usize, init_strategy: InitStrategy) !Self {
             const elements = try allocator.alloc(T, rows * columns);
             var matrix = Self.fromSlice(rows, columns, elements);
             switch (init_strategy) {
@@ -277,7 +277,7 @@ test "Split matrix on row" {
 }
 
 test "Allocate matrix and initalize with zeros" {
-    var m = try Matrix(f32).alloc(t.allocator, 1, 2, .zeros);
+    var m = try Matrix(f32).init(t.allocator, 1, 2, .zeros);
     defer m.deinit(t.allocator);
 
     try t.expectEqual(m.rows, 1);
@@ -286,7 +286,7 @@ test "Allocate matrix and initalize with zeros" {
 }
 
 test "Allocate matrix and initalize with random numbers" {
-    var m = try Matrix(f32).alloc(t.allocator, 1, 2, .rand);
+    var m = try Matrix(f32).init(t.allocator, 1, 2, .rand);
     defer m.deinit(t.allocator);
 
     try t.expectEqual(m.rows, 1);
@@ -327,10 +327,10 @@ test "Transpose matrix elements" {
 }
 
 test "Copy elements from other matrix" {
-    var a = try Matrix(f32).alloc(t.allocator, 1, 2, .zeros);
+    var a = try Matrix(f32).init(t.allocator, 1, 2, .zeros);
     defer a.deinit(t.allocator);
 
-    var b = try Matrix(f32).alloc(t.allocator, 1, 2, .rand);
+    var b = try Matrix(f32).init(t.allocator, 1, 2, .rand);
     defer b.deinit(t.allocator);
 
     a.copy(b);
@@ -346,10 +346,10 @@ test "Invert sign of matrix elements" {
 }
 
 test "Check if Matrix has same dimension as other" {
-    var a = try Matrix(f32).alloc(t.allocator, 1, 2, .zeros);
+    var a = try Matrix(f32).init(t.allocator, 1, 2, .zeros);
     defer a.deinit(t.allocator);
 
-    var b = try Matrix(f32).alloc(t.allocator, 2, 2, .zeros);
+    var b = try Matrix(f32).init(t.allocator, 2, 2, .zeros);
     defer b.deinit(t.allocator);
 
     try t.expect(a.sameDimAs(a));

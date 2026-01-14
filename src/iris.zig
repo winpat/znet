@@ -16,8 +16,8 @@ pub fn load(allocator: Allocator, path: []const u8) !struct { Matrix(f32), Matri
     // Skip CSV header
     csv.skipLine();
 
-    var features = try Matrix(f32).alloc(allocator, 150, 4, .zeros);
-    var labels = try Matrix(f32).alloc(allocator, 150, 3, .zeros);
+    var features = try Matrix(f32).init(allocator, 150, 4, .zeros);
+    var labels = try Matrix(f32).init(allocator, 150, 3, .zeros);
 
     var line: usize = 0;
     while (line < NUM_IRIS_SAMPLES) : (line += 1) {

@@ -19,7 +19,7 @@ pub fn MeanSquaredError(comptime T: type) type {
             return Self{
                 .allocator = allocator,
                 .dim = dim,
-                .gradient = try Matrix(T).alloc(allocator, 1, dim, .zeros),
+                .gradient = try Matrix(T).init(allocator, 1, dim, .zeros),
             };
         }
 

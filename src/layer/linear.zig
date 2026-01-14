@@ -41,12 +41,12 @@ pub fn Linear(comptime T: type) type {
                 .allocator = allocator,
                 .inputs = inputs,
                 .outputs = outputs,
-                .activations = try Matrix(T).alloc(allocator, 1, outputs, .zeros),
                 .weights = try Matrix(T).allocFromSlice(allocator, inputs, outputs, weights),
                 .biases = try Matrix(T).allocFromSlice(allocator, 1, outputs, biases),
-                .gradient_weights = try Matrix(T).alloc(allocator, inputs, outputs, .zeros),
-                .gradient_biases = try Matrix(T).alloc(allocator, 1, outputs, .zeros),
-                .gradient_inputs = try Matrix(T).alloc(allocator, 1, inputs, .zeros),
+                .activations = try Matrix(T).init(allocator, 1, outputs, .zeros),
+                .gradient_weights = try Matrix(T).init(allocator, inputs, outputs, .zeros),
+                .gradient_biases = try Matrix(T).init(allocator, 1, outputs, .zeros),
+                .gradient_inputs = try Matrix(T).init(allocator, 1, inputs, .zeros),
             };
         }
 

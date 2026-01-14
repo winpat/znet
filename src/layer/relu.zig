@@ -20,8 +20,8 @@ pub fn ReLU(comptime T: type) type {
             return Self{
                 .allocator = allocator,
                 .dim = dim,
-                .activations = try Matrix(T).alloc(allocator, 1, dim, .zeros),
-                .gradient = try Matrix(T).alloc(allocator, 1, dim, .zeros),
+                .activations = try Matrix(T).init(allocator, 1, dim, .zeros),
+                .gradient = try Matrix(T).init(allocator, 1, dim, .zeros),
             };
         }
 

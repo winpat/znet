@@ -94,7 +94,7 @@ pub fn Network(comptime T: type) type {
 
         /// Feed a batch of inputs through the network.
         pub fn predictBatch(self: Self, batch: Matrix(T)) !Matrix(T) {
-            var predictions = try Matrix(T).alloc(self.allocator, batch.rows, self.outputs, .zeros);
+            var predictions = try Matrix(T).init(self.allocator, batch.rows, self.outputs, .zeros);
             for (0..batch.rows) |r| {
                 const prediction = self.predict(batch.getRow(r));
                 predictions.setRow(r, prediction);
