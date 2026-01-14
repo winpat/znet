@@ -1,6 +1,7 @@
 const std = @import("std");
-const Matrix = @import("matrix.zig").Matrix;
 const t = std.testing;
+
+const Matrix = @import("matrix.zig").Matrix;
 
 /// Normalize matrix columns by it's min and max values.
 pub fn minMaxNormalize(comptime T: type, m: *Matrix(T)) void {
@@ -28,7 +29,7 @@ test "Test min-max normalization of matrix columns" {
         8.0, 1.0, 7.0,
         9.0, 7.0, 5.0,
     };
-    var m = Matrix(f32).init(3, 3, &data);
+    var m = Matrix(f32).fromSlice(3, 3, &data);
 
     minMaxNormalize(f32, &m);
     try t.expectEqualSlices(f32, &.{

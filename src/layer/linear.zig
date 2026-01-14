@@ -149,7 +149,7 @@ test "Linear forward pass" {
 
     // 1x2 [ 1.0  1.0 ]
     var feature_data = [_]f32{1.0} ** 2;
-    const features = Matrix(f32).init(1, 2, &feature_data);
+    const features = Matrix(f32).fromSlice(1, 2, &feature_data);
 
     // 2x4 [ 1.0  1.0  1.0  1.0
     //       1.0  1.0  1.0  1.0 ]

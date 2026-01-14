@@ -1,11 +1,11 @@
 const std = @import("std");
-const Matrix = @import("matrix.zig").Matrix;
 const t = std.testing;
 
-pub const Sigmoid = @import("layer/sigmoid.zig").Sigmoid;
-pub const ReLU = @import("layer/relu.zig").ReLU;
-pub const Softmax = @import("layer/softmax.zig").Softmax;
 pub const Linear = @import("layer/linear.zig").Linear;
+pub const ReLU = @import("layer/relu.zig").ReLU;
+pub const Sigmoid = @import("layer/sigmoid.zig").Sigmoid;
+pub const Softmax = @import("layer/softmax.zig").Softmax;
+const Matrix = @import("matrix.zig").Matrix;
 
 const LayerTag = enum {
     linear,
@@ -78,7 +78,7 @@ pub fn Layer(comptime T: type) type {
 
 test "Forward pass" {
     var input_data = [_]f32{ 1.0, 2.0, 3.0 };
-    const input = Matrix(f32).init(1, 3, &input_data);
+    const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     const sigmoid = try Sigmoid(f32).init(t.allocator, 3);
     var layer = Layer(f32){ .sigmoid = sigmoid };
@@ -91,10 +91,10 @@ test "Forward pass" {
 
 test "Backward pass" {
     var input_data = [_]f32{ 1.0, 2.0, 3.0 };
-    const input = Matrix(f32).init(1, 3, &input_data);
+    const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     var err_grad_data = [_]f32{ 0.5, 0.5, 0.5 };
-    const err_grad = Matrix(f32).init(1, 3, &err_grad_data);
+    const err_grad = Matrix(f32).fromSlice(1, 3, &err_grad_data);
 
     const sigmoid = try Sigmoid(f32).init(t.allocator, 3);
     var layer = Layer(f32){ .sigmoid = sigmoid };

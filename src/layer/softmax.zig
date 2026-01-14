@@ -78,7 +78,7 @@ pub fn Softmax(comptime T: type) type {
 
 test "Softmax forward pass" {
     var input_data = [_]f32{ 1, 2 };
-    const input = Matrix(f32).init(1, 2, &input_data);
+    const input = Matrix(f32).fromSlice(1, 2, &input_data);
 
     var softmax = try Softmax(f32).init(t.allocator, 2);
     defer softmax.deinit();
@@ -94,10 +94,10 @@ test "Softmax forward pass" {
 
 test "Softmax backward pass" {
     var input_data = [_]f32{ 1, 2 };
-    const input = Matrix(f32).init(1, 2, &input_data);
+    const input = Matrix(f32).fromSlice(1, 2, &input_data);
 
     var err_grad_data = [_]f32{ -0.5, 0.5 };
-    const err_grad = Matrix(f32).init(1, 2, &err_grad_data);
+    const err_grad = Matrix(f32).fromSlice(1, 2, &err_grad_data);
 
     var softmax = try Softmax(f32).init(t.allocator, 2);
     defer softmax.deinit();

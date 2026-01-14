@@ -46,7 +46,7 @@ test "Create test train split" {
         5, 6,
         7, 8,
     };
-    var features = Matrix(f32).init(4, 2, &feature_data);
+    var features = Matrix(f32).fromSlice(4, 2, &feature_data);
 
     var label_data = [_]f32{
         1, 0,
@@ -54,7 +54,7 @@ test "Create test train split" {
         1, 0,
         0, 1,
     };
-    var labels = Matrix(f32).init(4, 2, &label_data);
+    var labels = Matrix(f32).fromSlice(4, 2, &label_data);
 
     const train_features, const train_labels, const test_features, const test_labels = trainTestSplit(
         f32,

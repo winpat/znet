@@ -177,7 +177,7 @@ test "Make prediction given inputs" {
         1.0, 1.0,
         1.0, 1.0,
     };
-    const input = Matrix(f32).init(2, 2, &input_data);
+    const input = Matrix(f32).fromSlice(2, 2, &input_data);
 
     const prediction = try net.predictBatch(input);
     defer prediction.deinit(t.allocator);
@@ -218,10 +218,10 @@ test "Train network" {
     try net.addLayer(Layer(f32){ .sigmoid = s1 });
 
     var input_data = [_]f32{ 1.0, 1.0 };
-    const input = Matrix(f32).init(1, 2, &input_data);
+    const input = Matrix(f32).fromSlice(1, 2, &input_data);
 
     var labels_data = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const labels = Matrix(f32).init(1, 4, &labels_data);
+    const labels = Matrix(f32).fromSlice(1, 4, &labels_data);
 
     var discarding = std.Io.Writer.Discarding.init(&.{});
     try net.train(40, 0.001, input, labels, &discarding.writer);

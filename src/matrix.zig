@@ -17,18 +17,10 @@ pub fn Matrix(comptime T: type) type {
         columns: usize,
         elements: []T = undefined,
 
-        /// Initalize matrix on unowned slice. The caller is responsible of
-        /// ensuring that passed slices lifetime matches the one of the returned
-        /// matrix.
-        pub fn init(rows: usize, columns: usize, elements: []T) Self {
-            assert(rows * columns == elements.len);
-            return Self{ .rows = rows, .columns = columns, .elements = elements };
-        }
-
         /// Allocate and initalize matrix. Matrix needs to be freed by the owner.
         pub fn alloc(allocator: Allocator, rows: usize, columns: usize, init_strategy: InitStrategy) !Self {
             const elements = try allocator.alloc(T, rows * columns);
-            var matrix = Self.init(rows, columns, elements);
+            var matrix = Self.fromSlice(rows, columns, elements);
             switch (init_strategy) {
                 .zeros => matrix.zeros(),
                 .rand => matrix.rand(),
@@ -36,17 +28,24 @@ pub fn Matrix(comptime T: type) type {
             return matrix;
         }
 
+        /// Initalize matrix from unowned slice. It's the callers responsibility
+        /// to ensure that slices lifetime matches the one of the returned matrix.
+        pub fn fromSlice(rows: usize, columns: usize, elements: []T) Self {
+            assert(rows * columns == elements.len);
+            return Self{ .rows = rows, .columns = columns, .elements = elements };
+        }
+
         /// Allocate a matrix and initalize it with a copy data in passed slice.
         /// The length of the slice needs to match the number of elements.
         pub fn allocFromSlice(allocator: Allocator, rows: usize, columns: usize, data: []const T) !Self {
             const elements = try allocator.alloc(T, rows * columns);
             @memcpy(elements, data);
-            return Self.init(rows, columns, elements);
+            return Self.fromSlice(rows, columns, elements);
         }
 
         /// Transpose elements and store them in a newly allocated matrix.
         pub fn allocTranspose(self: Self, allocator: Allocator) !Matrix(T) {
-            var transpose = Self.init(
+            var transpose = Self.fromSlice(
                 self.columns,
                 self.rows,
                 try allocator.alloc(T, self.rows * self.columns),
@@ -116,7 +115,7 @@ pub fn Matrix(comptime T: type) type {
             assert(r >= 0 and r < self.rows);
             const from = self.columns * r;
             const to = self.columns * r + self.columns;
-            return Self.init(1, self.columns, self.elements[from..to]);
+            return Self.fromSlice(1, self.columns, self.elements[from..to]);
         }
 
         /// Set element at row and column to value.
@@ -142,8 +141,8 @@ pub fn Matrix(comptime T: type) type {
             assert(r >= 0 and r < self.rows);
             const divider = r * self.columns;
             return .{
-                Self.init(r, self.columns, self.elements[0..divider]),
-                Self.init(self.rows - r, self.columns, self.elements[divider..self.elements.len]),
+                Self.fromSlice(r, self.columns, self.elements[0..divider]),
+                Self.fromSlice(self.rows - r, self.columns, self.elements[divider..self.elements.len]),
             };
         }
 
@@ -209,14 +208,14 @@ pub fn RowIterator(comptime T: type) type {
             const to = (self.current_row * self.m.columns) + self.m.columns;
 
             defer self.current_row += 1;
-            return Matrix(T).init(1, self.m.columns, self.m.elements[from..to]);
+            return Matrix(T).fromSlice(1, self.m.columns, self.m.elements[from..to]);
         }
     };
 }
 
 test "Set and get value" {
     var m_e = [_]f32{0.0} ** 2;
-    var m = Matrix(f32).init(1, 2, &m_e);
+    var m = Matrix(f32).fromSlice(1, 2, &m_e);
 
     try t.expectEqual(m.get(0, 0), 0);
     m.set(0, 0, 1);
@@ -225,14 +224,14 @@ test "Set and get value" {
 
 test "Set and get row" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 };
-    var m = Matrix(f32).init(3, 2, &m_e);
+    var m = Matrix(f32).fromSlice(3, 2, &m_e);
 
     try t.expectEqualSlices(f32, m.getRow(0).elements, &.{ 1.0, 2.0 });
     try t.expectEqualSlices(f32, m.getRow(1).elements, &.{ 3.0, 4.0 });
     try t.expectEqualSlices(f32, m.getRow(2).elements, &.{ 5.0, 6.0 });
 
     var new_row = [_]f32{ 7.0, 8.0 };
-    const row_matrix = Matrix(f32).init(1, 2, &new_row);
+    const row_matrix = Matrix(f32).fromSlice(1, 2, &new_row);
 
     m.setRow(2, row_matrix);
     try t.expectEqualSlices(f32, m.getRow(2).elements, row_matrix.elements);
@@ -240,7 +239,7 @@ test "Set and get row" {
 
 test "Iterate over matrix rows" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    var m = Matrix(f32).init(2, 2, &m_e);
+    var m = Matrix(f32).fromSlice(2, 2, &m_e);
 
     var row_iterator = m.iterRows();
     try t.expectEqualSlices(f32, row_iterator.next().?.elements, &.{ 1.0, 2.0 });
@@ -250,7 +249,7 @@ test "Iterate over matrix rows" {
 
 test "Swap two rows" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    var m = Matrix(f32).init(2, 2, &m_e);
+    var m = Matrix(f32).fromSlice(2, 2, &m_e);
 
     m.swapRows(0, 1);
     try t.expectEqualSlices(f32, m.elements, &.{ 3.0, 4.0, 1.0, 2.0 });
@@ -258,7 +257,7 @@ test "Swap two rows" {
 
 test "Shuffle matrix" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    var m = Matrix(f32).init(2, 2, &m_e);
+    var m = Matrix(f32).fromSlice(2, 2, &m_e);
 
     try m.shuffleRows();
     try t.expectEqualSlices(f32, &.{ 3.0, 4.0, 1.0, 2.0 }, m.elements);
@@ -266,7 +265,7 @@ test "Shuffle matrix" {
 
 test "Split matrix on row" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0 };
-    var m = Matrix(f32).init(5, 1, &m_e);
+    var m = Matrix(f32).fromSlice(5, 1, &m_e);
 
     const low, const high = m.splitOnRow(2);
 
@@ -340,7 +339,7 @@ test "Copy elements from other matrix" {
 
 test "Invert sign of matrix elements" {
     var data = [_]f32{ 1.0, -2.0, 3.0 };
-    var m = Matrix(f32).init(1, 3, &data);
+    var m = Matrix(f32).fromSlice(1, 3, &data);
 
     m.negative();
     try t.expectEqualSlices(f32, m.elements, &.{ -1.0, 2.0, -3.0 });

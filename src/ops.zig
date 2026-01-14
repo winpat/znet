@@ -1,7 +1,8 @@
 const std = @import("std");
-const Matrix = @import("matrix.zig").Matrix;
 const assert = std.debug.assert;
 const t = std.testing;
+
+const Matrix = @import("matrix.zig").Matrix;
 
 /// Compute the mean of all matrix elements.
 pub fn mean(comptime T: type, m: Matrix(T)) T {
@@ -121,13 +122,13 @@ pub fn argmax(comptime T: type, m: Matrix(T)) usize {
 
 test "Add two matrices together" {
     var a_e = [_]f32{2.0} ** 4;
-    const a = Matrix(f32).init(2, 2, &a_e);
+    const a = Matrix(f32).fromSlice(2, 2, &a_e);
 
     var b_e = [_]f32{1.0} ** 4;
-    const b = Matrix(f32).init(2, 2, &b_e);
+    const b = Matrix(f32).fromSlice(2, 2, &b_e);
 
     var r_e = [_]f32{0.0} ** 4;
-    var r = Matrix(f32).init(2, 2, &r_e);
+    var r = Matrix(f32).fromSlice(2, 2, &r_e);
 
     add(f32, a, b, &r);
     try t.expectEqualSlices(f32, r.elements, &.{ 3.0, 3.0, 3.0, 3.0 });
@@ -135,10 +136,10 @@ test "Add two matrices together" {
 
 test "Add scalar to matrix" {
     var a_e = [_]f32{2.0} ** 4;
-    const a = Matrix(f32).init(2, 2, &a_e);
+    const a = Matrix(f32).fromSlice(2, 2, &a_e);
 
     var r_e = [_]f32{0.0} ** 4;
-    var r = Matrix(f32).init(2, 2, &r_e);
+    var r = Matrix(f32).fromSlice(2, 2, &r_e);
 
     addScalar(f32, a, 1.0, &r);
     try t.expectEqualSlices(f32, r.elements, &.{ 3.0, 3.0, 3.0, 3.0 });
@@ -146,13 +147,13 @@ test "Add scalar to matrix" {
 
 test "Subtract one matrix from another" {
     var a_e = [_]f32{3.0} ** 4;
-    const a = Matrix(f32).init(2, 2, &a_e);
+    const a = Matrix(f32).fromSlice(2, 2, &a_e);
 
     var b_e = [_]f32{1.0} ** 4;
-    const b = Matrix(f32).init(2, 2, &b_e);
+    const b = Matrix(f32).fromSlice(2, 2, &b_e);
 
     var r_e = [_]f32{0.0} ** 4;
-    var r = Matrix(f32).init(2, 2, &r_e);
+    var r = Matrix(f32).fromSlice(2, 2, &r_e);
 
     subtract(f32, a, b, &r);
     try t.expectEqualSlices(f32, r.elements, &.{ 2.0, 2.0, 2.0, 2.0 });
@@ -160,7 +161,7 @@ test "Subtract one matrix from another" {
 
 test "Flip sign of matrix elements" {
     var data = [_]f32{ 1.0, -2.0, 3.0, -4.0 };
-    var m = Matrix(f32).init(2, 2, &data);
+    var m = Matrix(f32).fromSlice(2, 2, &data);
 
     flipSign(f32, m, &m);
     try t.expectEqualSlices(f32, m.elements, &.{ -1.0, 2.0, -3.0, 4.0 });
@@ -168,7 +169,7 @@ test "Flip sign of matrix elements" {
 
 test "Multiply two matrices together" {
     var a = [_]f32{ 5.1, 3.5, 1.4, 0.2 };
-    const am = Matrix(f32).init(1, 4, &a);
+    const am = Matrix(f32).fromSlice(1, 4, &a);
 
     var b = [_]f32{
         0.01, 0.01, 0.01, 0.01, 0.02, 0.02,
@@ -176,10 +177,10 @@ test "Multiply two matrices together" {
         0.04, 0.04, 0.04, 0.04, 0.05, 0.05,
         0.05, 0.05, 0.6,  0.6,  0.6,  0.6,
     };
-    const bm = Matrix(f32).init(4, 6, &b);
+    const bm = Matrix(f32).fromSlice(4, 6, &b);
 
     var r = [_]f32{0} ** 6;
-    var rm = Matrix(f32).init(1, 6, &r);
+    var rm = Matrix(f32).fromSlice(1, 6, &r);
 
     // 1x4 * 4x6 = 1x6
     multiply(f32, am, bm, &rm);
@@ -188,13 +189,13 @@ test "Multiply two matrices together" {
 
 test "Multiply two matrices element wise" {
     var a_e = [_]f32{2.0} ** 4;
-    const a = Matrix(f32).init(2, 2, &a_e);
+    const a = Matrix(f32).fromSlice(2, 2, &a_e);
 
     var b_e = [_]f32{2.0} ** 4;
-    const b = Matrix(f32).init(2, 2, &b_e);
+    const b = Matrix(f32).fromSlice(2, 2, &b_e);
 
     var r_e = [_]f32{0.0} ** 4;
-    var r = Matrix(f32).init(2, 2, &r_e);
+    var r = Matrix(f32).fromSlice(2, 2, &r_e);
 
     hadmardProduct(f32, a, b, &r);
     try t.expectEqualSlices(f32, r.elements, &.{ 4.0, 4.0, 4.0, 4.0 });
@@ -202,12 +203,12 @@ test "Multiply two matrices element wise" {
 
 test "Multiply matrix with a scalar element wise" {
     var a_e = [_]f32{2.0} ** 4;
-    const a = Matrix(f32).init(2, 2, &a_e);
+    const a = Matrix(f32).fromSlice(2, 2, &a_e);
 
     const s = 2.0;
 
     var r_e = [_]f32{0.0} ** 4;
-    var r = Matrix(f32).init(2, 2, &r_e);
+    var r = Matrix(f32).fromSlice(2, 2, &r_e);
 
     multiplyScalar(f32, a, s, &r);
     try t.expectEqualSlices(f32, r.elements, &.{ 4.0, 4.0, 4.0, 4.0 });
@@ -215,7 +216,7 @@ test "Multiply matrix with a scalar element wise" {
 
 test "Get the mean value of matrix" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    const m = Matrix(f32).init(2, 2, &m_e);
+    const m = Matrix(f32).fromSlice(2, 2, &m_e);
 
     try t.expectEqual(mean(f32, m), 2.5);
 }
@@ -226,7 +227,7 @@ fn addOne(v: f32) f32 {
 
 test "Map unary operation over matrix elements" {
     var m_e = [_]f32{2.0} ** 4;
-    var m = Matrix(f32).init(2, 2, &m_e);
+    var m = Matrix(f32).fromSlice(2, 2, &m_e);
 
     map(f32, &m, addOne);
     try t.expectEqualSlices(f32, m.elements, &.{ 3.0, 3.0, 3.0, 3.0 });
@@ -234,7 +235,7 @@ test "Map unary operation over matrix elements" {
 
 test "Get index highest of largest element in matrix" {
     var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    const m = Matrix(f32).init(1, 4, &m_e);
+    const m = Matrix(f32).fromSlice(1, 4, &m_e);
 
     try t.expectEqual(argmax(f32, m), 3);
 }

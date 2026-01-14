@@ -67,7 +67,7 @@ pub fn ReLU(comptime T: type) type {
 
 test "ReLU forward pass" {
     var input_data = [_]f32{ -0.4, 0.0, 0.3 };
-    const input = Matrix(f32).init(1, 3, &input_data);
+    const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     var relu = try ReLU(f32).init(t.allocator, 3);
     defer relu.deinit();
@@ -79,10 +79,10 @@ test "ReLU forward pass" {
 
 test "ReLU backward pass" {
     var input_data = [_]f32{ -0.4, 0.0, 0.3 };
-    const input = Matrix(f32).init(1, 3, &input_data);
+    const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     var err_grad_data = [_]f32{ 0.5, 0.5, 0.5 };
-    const err_grad = Matrix(f32).init(1, 3, &err_grad_data);
+    const err_grad = Matrix(f32).fromSlice(1, 3, &err_grad_data);
 
     const relu = try ReLU(f32).init(t.allocator, 3);
     defer relu.deinit();

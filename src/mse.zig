@@ -66,10 +66,10 @@ test "Compute the loss" {
     //   assert mse(a,b) == 11 / 3
 
     var a_data = [_]f32{ 1.0, 2.0, 3.0 };
-    const a = Matrix(f32).init(1, 3, &a_data);
+    const a = Matrix(f32).fromSlice(1, 3, &a_data);
 
     var b_data = [_]f32{ 0.0, 1.0, 0.0 };
-    const b = Matrix(f32).init(1, 3, &b_data);
+    const b = Matrix(f32).fromSlice(1, 3, &b_data);
 
     const mse = try MeanSquaredError(f32).init(t.allocator, 3);
     defer mse.deinit();
@@ -96,10 +96,10 @@ test "Compute gradient of the loss with respect to the input" {
     //   )
 
     var a_data = [_]f32{ 1.0, 2.0, 3.0 };
-    const a = Matrix(f32).init(1, 3, &a_data);
+    const a = Matrix(f32).fromSlice(1, 3, &a_data);
 
     var b_data = [_]f32{ 0.0, 1.0, 0.0 };
-    const b = Matrix(f32).init(1, 3, &b_data);
+    const b = Matrix(f32).fromSlice(1, 3, &b_data);
 
     var mse = try MeanSquaredError(f32).init(t.allocator, 3);
     defer mse.deinit();

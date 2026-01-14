@@ -83,7 +83,7 @@ test "Sigmoid forward pass" {
     //   )
 
     var input_data = [_]f32{ 1.0, 2.0, 3.0 };
-    const input = Matrix(f32).init(1, 3, &input_data);
+    const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     var sigmoid = try Sigmoid(f32).init(t.allocator, 3);
     defer sigmoid.deinit();
@@ -114,10 +114,10 @@ test "Sigmoid backward pass" {
     //   )
 
     var input_data = [_]f32{ 1.0, 2.0, 3.0 };
-    const input = Matrix(f32).init(1, 3, &input_data);
+    const input = Matrix(f32).fromSlice(1, 3, &input_data);
 
     var err_grad_data = [_]f32{ 0.5, 0.5, 0.5 };
-    const err_grad = Matrix(f32).init(1, 3, &err_grad_data);
+    const err_grad = Matrix(f32).fromSlice(1, 3, &err_grad_data);
 
     var sigmoid = try Sigmoid(f32).init(t.allocator, 3);
     defer sigmoid.deinit();
