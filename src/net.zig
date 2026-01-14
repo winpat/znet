@@ -180,7 +180,7 @@ test "Make prediction given inputs" {
     const input = Matrix(f32).init(2, 2, &input_data);
 
     const prediction = try net.predictBatch(input);
-    defer prediction.free(t.allocator);
+    defer prediction.deinit(t.allocator);
 
     try t.expectEqualSlices(
         f32,

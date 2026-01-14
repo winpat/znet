@@ -1,9 +1,10 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Matrix = @import("../matrix.zig").Matrix;
-const ops = @import("../ops.zig");
 const t = std.testing;
 const assert = std.debug.assert;
+
+const Matrix = @import("../matrix.zig").Matrix;
+const ops = @import("../ops.zig");
 
 pub fn Linear(comptime T: type) type {
     return struct {
@@ -66,12 +67,12 @@ pub fn Linear(comptime T: type) type {
 
         /// Free all allocated memory.
         pub fn deinit(self: Self) void {
-            self.activations.free(self.allocator);
-            self.weights.free(self.allocator);
-            self.biases.free(self.allocator);
-            self.gradient_weights.free(self.allocator);
-            self.gradient_biases.free(self.allocator);
-            self.gradient_inputs.free(self.allocator);
+            self.activations.deinit(self.allocator);
+            self.weights.deinit(self.allocator);
+            self.biases.deinit(self.allocator);
+            self.gradient_weights.deinit(self.allocator);
+            self.gradient_biases.deinit(self.allocator);
+            self.gradient_inputs.deinit(self.allocator);
         }
 
         pub fn format(
@@ -106,12 +107,12 @@ pub fn Linear(comptime T: type) type {
 
             // dC_dw
             const i_t = input.allocTranspose(self.allocator) catch unreachable;
-            defer i_t.free(self.allocator);
+            defer i_t.deinit(self.allocator);
             ops.multiply(f32, i_t, err_grad, &self.gradient_weights);
 
             // dC_di
             const w_t = self.weights.allocTranspose(self.allocator) catch unreachable;
-            defer w_t.free(self.allocator);
+            defer w_t.deinit(self.allocator);
             ops.multiply(f32, err_grad, w_t, &self.gradient_inputs);
 
             return self.gradient_inputs;
@@ -218,11 +219,11 @@ test "Linear backward pass" {
     // The first row of the iris dataset.
     const features = [_]f32{ 5.1, 3.5, 1.4, 0.2 };
     const input = try Matrix(f32).allocFromSlice(t.allocator, 1, 4, &features);
-    defer input.free(t.allocator);
+    defer input.deinit(t.allocator);
 
     const err_grad_data = [_]f32{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6 };
     var err_grad = try Matrix(f32).allocFromSlice(t.allocator, 1, 6, &err_grad_data);
-    defer err_grad.free(t.allocator);
+    defer err_grad.deinit(t.allocator);
 
     const grad = linear.backward(input, err_grad);
 

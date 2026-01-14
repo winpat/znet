@@ -1,9 +1,10 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Matrix = @import("matrix.zig").Matrix;
 const math = std.math;
 const assert = std.debug.assert;
 const t = std.testing;
+
+const Matrix = @import("matrix.zig").Matrix;
 
 pub fn MeanSquaredError(comptime T: type) type {
     return struct {
@@ -24,7 +25,7 @@ pub fn MeanSquaredError(comptime T: type) type {
 
         /// Free all allocated memory.
         pub fn deinit(self: Self) void {
-            self.gradient.free(self.allocator);
+            self.gradient.deinit(self.allocator);
         }
 
         /// Compute loss between prediction and labels.

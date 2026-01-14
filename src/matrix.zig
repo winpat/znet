@@ -63,7 +63,7 @@ pub fn Matrix(comptime T: type) type {
         }
 
         /// Release all allocated memory.
-        pub fn free(self: Self, allocator: Allocator) void {
+        pub fn deinit(self: Self, allocator: Allocator) void {
             allocator.free(self.elements);
         }
 
@@ -279,7 +279,7 @@ test "Split matrix on row" {
 
 test "Allocate matrix and initalize with zeros" {
     var m = try Matrix(f32).alloc(t.allocator, 1, 2, .zeros);
-    defer m.free(t.allocator);
+    defer m.deinit(t.allocator);
 
     try t.expectEqual(m.rows, 1);
     try t.expectEqual(m.columns, 2);
@@ -288,7 +288,7 @@ test "Allocate matrix and initalize with zeros" {
 
 test "Allocate matrix and initalize with random numbers" {
     var m = try Matrix(f32).alloc(t.allocator, 1, 2, .rand);
-    defer m.free(t.allocator);
+    defer m.deinit(t.allocator);
 
     try t.expectEqual(m.rows, 1);
     try t.expectEqual(m.columns, 2);
@@ -301,7 +301,7 @@ test "Allocate matrix and initalize it from slice" {
     const data = [_]f32{ 2.0, 3.0 };
 
     var m = try Matrix(f32).allocFromSlice(t.allocator, 1, 2, &data);
-    defer m.free(t.allocator);
+    defer m.deinit(t.allocator);
 
     try t.expectEqual(m.rows, 1);
     try t.expectEqual(m.columns, 2);
@@ -315,10 +315,10 @@ test "Transpose matrix elements" {
     };
 
     var m = try Matrix(f32).allocFromSlice(t.allocator, 2, 3, &data);
-    defer m.free(t.allocator);
+    defer m.deinit(t.allocator);
 
     const transpose = try m.allocTranspose(t.allocator);
-    defer transpose.free(t.allocator);
+    defer transpose.deinit(t.allocator);
 
     try t.expectEqualSlices(f32, transpose.elements, &.{
         1.0, 4.0,
@@ -329,10 +329,10 @@ test "Transpose matrix elements" {
 
 test "Copy elements from other matrix" {
     var a = try Matrix(f32).alloc(t.allocator, 1, 2, .zeros);
-    defer a.free(t.allocator);
+    defer a.deinit(t.allocator);
 
     var b = try Matrix(f32).alloc(t.allocator, 1, 2, .rand);
-    defer b.free(t.allocator);
+    defer b.deinit(t.allocator);
 
     a.copy(b);
     try t.expectEqualSlices(f32, a.elements, b.elements);
@@ -348,10 +348,10 @@ test "Invert sign of matrix elements" {
 
 test "Check if Matrix has same dimension as other" {
     var a = try Matrix(f32).alloc(t.allocator, 1, 2, .zeros);
-    defer a.free(t.allocator);
+    defer a.deinit(t.allocator);
 
     var b = try Matrix(f32).alloc(t.allocator, 2, 2, .zeros);
-    defer b.free(t.allocator);
+    defer b.deinit(t.allocator);
 
     try t.expect(a.sameDimAs(a));
     try t.expect(!a.sameDimAs(b));

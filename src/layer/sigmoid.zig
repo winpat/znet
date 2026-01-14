@@ -1,8 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Matrix = @import("../matrix.zig").Matrix;
 const t = std.testing;
 const assert = std.debug.assert;
+
+const Matrix = @import("../matrix.zig").Matrix;
 
 pub fn Sigmoid(comptime T: type) type {
     return struct {
@@ -26,8 +27,8 @@ pub fn Sigmoid(comptime T: type) type {
 
         /// Free all allocated memory.
         pub fn deinit(self: Self) void {
-            self.gradient.free(self.allocator);
-            self.activations.free(self.allocator);
+            self.gradient.deinit(self.allocator);
+            self.activations.deinit(self.allocator);
         }
 
         pub fn format(
