@@ -102,7 +102,7 @@ pub fn Linear(comptime T: type) type {
         /// the followup layers.
         pub fn backward(self: *Self, input: Matrix(T), err_grad: Matrix(T)) Matrix(T) {
             // dC_db
-            self.gradient_biases.copyFrom(err_grad);
+            self.gradient_biases.copy(err_grad);
 
             // dC_dw
             const i_t = input.allocTranspose(self.allocator) catch unreachable;

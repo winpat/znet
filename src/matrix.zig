@@ -176,7 +176,7 @@ pub fn Matrix(comptime T: type) type {
         }
 
         /// Copy all elements from matrix with the same dimensions.
-        pub fn copyFrom(self: *Self, other: Matrix(T)) void {
+        pub fn copy(self: *Self, other: Matrix(T)) void {
             assert(other.rows == self.rows and other.columns == self.columns);
             @memcpy(self.elements, other.elements);
         }
@@ -334,7 +334,7 @@ test "Copy elements from other matrix" {
     var b = try Matrix(f32).alloc(t.allocator, 1, 2, .rand);
     defer b.free(t.allocator);
 
-    a.copyFrom(b);
+    a.copy(b);
     try t.expectEqualSlices(f32, a.elements, b.elements);
 }
 
