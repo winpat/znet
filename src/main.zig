@@ -1,11 +1,9 @@
 const std = @import("std");
 
 const accuracy = @import("score.zig").accuracy;
-const iris = @import("iris.zig");
-const Matrix = @import("matrix.zig").Matrix;
+const dataset = @import("dataset.zig");
 const minMaxNormalize = @import("scale.zig").minMaxNormalize;
 const Network = @import("net.zig").Network;
-const ops = @import("ops.zig");
 const trainTestSplit = @import("split.zig").trainTestSplit;
 
 pub fn main() !void {
@@ -16,7 +14,7 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&buf);
     const stdout = &stdout_writer.interface;
 
-    var features, var labels = try iris.load(allocator, "data/iris.csv");
+    var features, var labels = try dataset.load(allocator, "data/iris.csv");
     minMaxNormalize(f32, &features);
 
     const X_train, const y_train, const X_test, const y_test = trainTestSplit(

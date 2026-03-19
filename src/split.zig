@@ -1,8 +1,9 @@
 const std = @import("std");
 const assert = std.debug.assert;
-const t = std.testing;
+const tst = std.testing;
 
-const Matrix = @import("matrix.zig").Matrix;
+const mat = @import("matrix.zig");
+const Matrix = mat.Matrix;
 
 /// Split features and labels into a train and test set.
 pub fn trainTestSplit(
@@ -15,21 +16,21 @@ pub fn trainTestSplit(
     assert(test_size > 0 and test_size <= 1);
     assert(train_size > 0 and test_size <= 1);
     assert(train_size + test_size == 1);
-    assert(features.rows == labels.rows);
+    assert(features.shape[0] == labels.shape[0]);
 
     var prng = std.Random.DefaultPrng.init(0);
     const random = prng.random();
 
-    var i = features.rows - 1;
+    var i = features.shape[0] - 1;
     while (i > 0) : (i -= 1) {
         const new_pos = random.intRangeLessThan(usize, 0, i);
-        features.swapRows(i, new_pos);
-        labels.swapRows(i, new_pos);
+        mat.swapRows(T, features, i, new_pos);
+        mat.swapRows(T, labels, i, new_pos);
     }
 
-    const dividing_row: usize = @intFromFloat(@round(@as(f32, @floatFromInt(features.rows)) * train_size));
-    const train_features, const test_features = features.splitOnRow(dividing_row);
-    const train_labels, const test_labels = labels.splitOnRow(dividing_row);
+    const dividing_row: usize = @intFromFloat(@round(@as(f32, @floatFromInt(features.shape[0])) * train_size));
+    const train_features, const test_features = mat.split(T, features, dividing_row);
+    const train_labels, const test_labels = mat.split(T, labels, dividing_row);
 
     return .{
         train_features,
@@ -46,7 +47,7 @@ test "Create test train split" {
         5, 6,
         7, 8,
     };
-    var features = Matrix(f32).fromSlice(4, 2, &feature_data);
+    var features = Matrix(f32).fromBuffer(.{ 4, 2 }, &feature_data);
 
     var label_data = [_]f32{
         1, 0,
@@ -54,7 +55,7 @@ test "Create test train split" {
         1, 0,
         0, 1,
     };
-    var labels = Matrix(f32).fromSlice(4, 2, &label_data);
+    var labels = Matrix(f32).fromBuffer(.{ 4, 2 }, &label_data);
 
     const train_features, const train_labels, const test_features, const test_labels = trainTestSplit(
         f32,
@@ -64,8 +65,8 @@ test "Create test train split" {
         0.25,
     );
 
-    try t.expectEqual(train_features.rows, 3);
-    try t.expectEqual(train_labels.rows, 3);
-    try t.expectEqual(test_features.rows, 1);
-    try t.expectEqual(test_labels.rows, 1);
+    try tst.expectEqual(train_features.shape[0], 3);
+    try tst.expectEqual(train_labels.shape[0], 3);
+    try tst.expectEqual(test_features.shape[0], 1);
+    try tst.expectEqual(test_labels.shape[0], 1);
 }

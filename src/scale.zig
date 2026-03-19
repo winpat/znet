@@ -1,24 +1,26 @@
 const std = @import("std");
-const t = std.testing;
+const tst = std.testing;
 
 const Matrix = @import("matrix.zig").Matrix;
 
 /// Normalize matrix columns by it's min and max values.
-pub fn minMaxNormalize(comptime T: type, m: *Matrix(T)) void {
-    for (0..m.columns) |c| {
-        var min: T = m.get(0, c);
+pub fn minMaxNormalize(comptime T: type, mat: *Matrix(T)) void {
+    const rows, const cols = mat.shape;
+
+    for (0..cols) |c| {
+        var min: T = mat.get(.{ 0, c });
         var max: T = min;
-        for (1..m.rows) |r| {
-            const e = m.get(r, c);
-            if (e < min) min = e;
-            if (e > max) max = e;
+        for (1..rows) |r| {
+            const v = mat.get(.{ r, c });
+            if (v < min) min = v;
+            if (v > max) max = v;
         }
 
         const diff = max - min;
-        for (0..m.rows) |r| {
-            const e = m.get(r, c);
-            const e_norm = (e - min) / diff;
-            m.set(r, c, e_norm);
+        for (0..rows) |r| {
+            const v = mat.get(.{ r, c });
+            const v_norm = (v - min) / diff;
+            mat.set(.{ r, c }, v_norm);
         }
     }
 }
@@ -29,12 +31,17 @@ test "Test min-max normalization of matrix columns" {
         8.0, 1.0, 7.0,
         9.0, 7.0, 5.0,
     };
-    var m = Matrix(f32).fromSlice(3, 3, &data);
+    var mat = Matrix(f32).fromBuffer(.{ 3, 3 }, &data);
 
-    minMaxNormalize(f32, &m);
-    try t.expectEqualSlices(f32, &.{
-        0e0,         8.333333e-1, 1e0,
-        8.333333e-1, 0e0,         1.6666667e-1,
-        1e0,         1e0,         0e0,
-    }, m.elements);
+    minMaxNormalize(f32, &mat);
+
+    try tst.expectEqualSlices(
+        f32,
+        &.{
+            0e0,         8.333333e-1, 1e0,
+            8.333333e-1, 0e0,         1.6666667e-1,
+            1e0,         1e0,         0e0,
+        },
+        mat.elements,
+    );
 }

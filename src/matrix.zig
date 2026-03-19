@@ -1,394 +1,212 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
-const RndGen = std.Random.DefaultPrng;
+const tst = std.testing;
 const assert = std.debug.assert;
-const t = std.testing;
+const mem = std.mem;
+const Allocator = std.mem.Allocator;
 
-const InitStrategy = enum {
-    zeros,
-    rand,
-};
+const tensor = @import("tensor.zig");
+const Tensor = tensor.Tensor;
 
-pub fn Matrix(comptime T: type) type {
-    return struct {
-        const Self = @This();
+pub fn Matrix(T: type) type {
+    return Tensor(T, 2);
+}
 
-        rows: usize,
-        columns: usize,
-        elements: []T = undefined,
+pub fn add(comptime T: type, lhs: Matrix(T), rhs: Matrix(T), res: *Matrix(T)) void {
+    tensor.add(T, 2, lhs, rhs, res);
+}
 
-        /// Initalize matrix.
-        pub fn init(allocator: Allocator, rows: usize, columns: usize, init_strategy: InitStrategy) !Self {
-            const elements = try allocator.alloc(T, rows * columns);
-            var matrix = Self.fromSlice(rows, columns, elements);
-            switch (init_strategy) {
-                .zeros => matrix.zeros(),
-                .rand => matrix.rand(),
+test "add()" {
+    const a = try Matrix(f32).fromSlice(tst.allocator, .{ 2, 2 }, &.{ 1, 2, 3, 4 });
+    defer a.deinit(tst.allocator);
+
+    const b = try Matrix(f32).fromSlice(tst.allocator, .{ 2, 2 }, &.{ 5, 6, 7, 8 });
+    defer b.deinit(tst.allocator);
+
+    var r = try Matrix(f32).init(tst.allocator, .{ 2, 2 });
+    defer r.deinit(tst.allocator);
+
+    add(f32, a, b, &r);
+
+    try tst.expectEqualSlices(f32, &.{ 6, 8, 10, 12 }, r.elements);
+}
+
+/// Compute the dot product between two matrices.
+///
+/// The number of columns of the first matrix needs to
+/// be equal to the number of rows in the second matrix.
+///
+/// The resulting matrix will have the number of rows of the first matrix
+/// and the number columns of the second matrix.
+///
+/// MxN * NxP = MxP
+///
+///                 [ y1 y4 ]
+///  [ x1 x2 x3 ] * [ y2 y5 ] = [ x1*y1+x2*y2+x3*y3, x1*y4+x2*y5+x3*y6 ]
+///  [ x4 x5 x6 ]   [ y3 y6 ]   [ x4*y1+x5*y2+x6*y3, x4*y4+x5*y5+x6*y6 ]
+///
+pub fn mul(comptime T: type, lhs: Matrix(T), rhs: Matrix(T), res: *Matrix(T)) void {
+    const M = lhs.shape[0];
+    const K = lhs.shape[1];
+    assert(rhs.shape[0] == K);
+
+    const N = rhs.shape[1];
+    assert(res.shape[0] == M);
+    assert(res.shape[1] == N);
+
+    for (0..M) |i| {
+        for (0..N) |j| {
+            var val: T = 0;
+            for (0..K) |k| {
+                val += lhs.get(.{ i, k }) * rhs.get(.{ k, j });
             }
-            return matrix;
+            res.set(.{ i, j }, val);
         }
-
-        /// Initalize matrix from unowned slice. It's the callers responsibility
-        /// to ensure that slices lifetime matches the one of the returned matrix.
-        pub fn fromSlice(rows: usize, columns: usize, elements: []T) Self {
-            assert(rows * columns == elements.len);
-            return Self{ .rows = rows, .columns = columns, .elements = elements };
-        }
-
-        /// Allocate a matrix and initalize it with a copy data in passed slice.
-        /// The length of the slice needs to match the number of elements.
-        pub fn initFromSlice(allocator: Allocator, rows: usize, columns: usize, data: []const T) !Self {
-            const elements = try allocator.alloc(T, rows * columns);
-            @memcpy(elements, data);
-            return Self.fromSlice(rows, columns, elements);
-        }
-
-        /// Release all allocated memory.
-        pub fn deinit(self: Self, allocator: Allocator) void {
-            allocator.free(self.elements);
-        }
-
-        /// Set all elements to zero.
-        pub fn zeros(self: Self) void {
-            @memset(self.elements, 0);
-        }
-
-        /// Randomly initalize matrix.
-        pub fn rand(self: *Self) void {
-            var rng = RndGen.init(0);
-            const random = rng.random();
-            for (self.elements) |*v| {
-                v.* = random.float(T);
-            }
-        }
-
-        pub fn format(
-            self: Self,
-            comptime fmt: []const u8,
-            options: std.fmt.FormatOptions,
-            writer: anytype,
-        ) !void {
-            _ = fmt;
-            _ = options;
-            try writer.print("{}_{}x{}", .{
-                T,
-                self.rows,
-                self.columns,
-            });
-        }
-
-        /// Invert the sign of every element.
-        pub fn negative(self: *Self) void {
-            for (self.elements) |*e| {
-                e.* *= -1;
-            }
-        }
-
-        /// Return element at specific row and column.
-        pub fn get(self: Self, r: usize, c: usize) T {
-            assert(r >= 0 and r < self.rows);
-            assert(c >= 0 and c < self.columns);
-            return self.elements[r * self.columns + c];
-        }
-
-        /// Return row matrix of a given row. The caller is responsible that the
-        /// row matrix does not outlive the matrix.
-        pub fn getRow(self: Self, r: usize) Self {
-            assert(r >= 0 and r < self.rows);
-            const from = self.columns * r;
-            const to = self.columns * r + self.columns;
-            return Self.fromSlice(1, self.columns, self.elements[from..to]);
-        }
-
-        /// Set element at row and column to value.
-        pub fn set(self: *Self, r: usize, c: usize, v: T) void {
-            assert(r >= 0 and r < self.rows);
-            assert(c >= 0 and c < self.columns);
-            self.elements[r * self.columns + c] = v;
-        }
-
-        /// Set row to values of a row matrix.
-        pub fn setRow(self: *Self, r: usize, m: Self) void {
-            assert(r >= 0 and r < self.rows);
-            assert(m.rows == 1);
-            assert(m.columns == self.columns);
-            const dest = self.elements[self.columns * r .. self.columns * r + self.columns];
-            @memcpy(dest, m.elements);
-        }
-
-        /// Split the matrix into two at row. Two matrices are returned, the
-        /// first containing all rows up to the dividing row (excluding the
-        /// dividing row) and the second containing the remaining rows.
-        pub fn splitOnRow(self: *Self, r: usize) struct { Self, Self } {
-            assert(r >= 0 and r < self.rows);
-            const divider = r * self.columns;
-            return .{
-                Self.fromSlice(r, self.columns, self.elements[0..divider]),
-                Self.fromSlice(self.rows - r, self.columns, self.elements[divider..self.elements.len]),
-            };
-        }
-
-        /// Return a row iterator.
-        pub fn iterRows(self: Self) RowIterator(T) {
-            return RowIterator(T){ .m = self };
-        }
-
-        /// Swap two rows with each other.
-        pub fn swapRows(self: *Self, a: usize, b: usize) void {
-            for (
-                self.elements[a * self.columns .. a * self.columns + self.columns],
-                self.elements[b * self.columns .. b * self.columns + self.columns],
-            ) |*x, *y| {
-                const tmp = x.*;
-                x.* = y.*;
-                y.* = tmp;
-            }
-        }
-
-        /// Randomly shuffle rows.
-        pub fn shuffleRows(self: *Self) !void {
-            var prng = std.Random.DefaultPrng.init(0);
-            const random = prng.random();
-
-            var i = self.rows - 1;
-            while (i > 0) : (i -= 1) {
-                self.swapRows(i, random.intRangeLessThan(usize, 0, i));
-            }
-        }
-
-        /// Copy all elements from matrix with the same dimensions.
-        pub fn copy(self: *Self, other: Matrix(T)) void {
-            assert(other.rows == self.rows and other.columns == self.columns);
-            @memcpy(self.elements, other.elements);
-        }
-
-        /// Check if the two matrices have same dimensions.
-        pub fn sameDimAs(self: Self, other: Matrix(T)) bool {
-            return self.rows == other.rows and self.columns == other.columns;
-        }
-
-        /// Print the matrix including it's elements. Useful for debugging.
-        pub fn print(self: Self) void {
-            std.debug.print("{d}x{d} - {any}\n", .{ self.rows, self.columns, self.elements });
-        }
-
-        /// Transpose elements into other matrix.
-        pub fn transpose(self: Self, other: *Matrix(T)) void {
-            assert(self.rows == other.columns);
-            assert(self.columns == other.rows);
-
-            for (0..self.rows) |r| {
-                for (0..self.columns) |c| {
-                    const e = self.get(r, c);
-                    other.set(c, r, e);
-                }
-            }
-        }
-
-        /// Transpose elements and store them in a newly allocated matrix.
-        pub fn allocTranspose(self: Self, allocator: Allocator) !Matrix(T) {
-            var result = Self.fromSlice(
-                self.columns,
-                self.rows,
-                try allocator.alloc(T, self.rows * self.columns),
-            );
-            self.transpose(&result);
-            return result;
-        }
-
-        /// Multiply two matrices with each other.
-        ///
-        /// For this to work the number of columns of the first matrix needs to
-        /// be equal to the number of rows in the second matrix.
-        ///
-        /// The resulting matrix will have the number of rows of the first matrix
-        /// and the number columns of the second matrix.
-        ///
-        /// MxN * NxP = MxP
-        ///
-        ///                 [ y1 y4 ]
-        ///  [ x1 x2 x3 ] * [ y2 y5 ] = [ x1*y1+x2*y2+x3*y3, x1*y4+x2*y5+x3*y6 ]
-        ///  [ x4 x5 x6 ]   [ y3 y6 ]   [ x4*y1+x5*y2+x6*y3, x4*y4+x5*y5+x6*y6 ]
-        ///
-        pub fn multiply(self: Self, other: Self, result: *Self) void {
-            for (0..self.rows) |i| {
-                for (0..other.columns) |j| {
-                    var v: T = 0;
-                    for (0..self.columns) |k| {
-                        v += self.get(i, k) * other.get(k, j);
-                    }
-                    result.set(i, j, v);
-                }
-            }
-        }
-
-        pub fn add(self: Self, other: Self, result: *Self) !void {
-            for (self.elements, other.elements, 0..) |a, b, idx|
-                result.elements[idx] = a + b;
-        }
-    };
-}
-
-pub fn RowIterator(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        m: Matrix(T),
-        current_row: usize = 0,
-
-        pub fn next(self: *Self) ?Matrix(T) {
-            if (self.current_row == self.m.rows) {
-                return null;
-            }
-
-            const from = self.current_row * self.m.columns;
-            const to = (self.current_row * self.m.columns) + self.m.columns;
-
-            defer self.current_row += 1;
-            return Matrix(T).fromSlice(1, self.m.columns, self.m.elements[from..to]);
-        }
-    };
-}
-
-test "Set and get value" {
-    var m_e = [_]f32{0.0} ** 2;
-    var m = Matrix(f32).fromSlice(1, 2, &m_e);
-
-    try t.expectEqual(m.get(0, 0), 0);
-    m.set(0, 0, 1);
-    try t.expectEqual(m.get(0, 0), 1);
-}
-
-test "Set and get row" {
-    var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 };
-    var m = Matrix(f32).fromSlice(3, 2, &m_e);
-
-    try t.expectEqualSlices(f32, m.getRow(0).elements, &.{ 1.0, 2.0 });
-    try t.expectEqualSlices(f32, m.getRow(1).elements, &.{ 3.0, 4.0 });
-    try t.expectEqualSlices(f32, m.getRow(2).elements, &.{ 5.0, 6.0 });
-
-    var new_row = [_]f32{ 7.0, 8.0 };
-    const row_matrix = Matrix(f32).fromSlice(1, 2, &new_row);
-
-    m.setRow(2, row_matrix);
-    try t.expectEqualSlices(f32, m.getRow(2).elements, row_matrix.elements);
-}
-
-test "Iterate over matrix rows" {
-    var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    var m = Matrix(f32).fromSlice(2, 2, &m_e);
-
-    var row_iterator = m.iterRows();
-    try t.expectEqualSlices(f32, row_iterator.next().?.elements, &.{ 1.0, 2.0 });
-    try t.expectEqualSlices(f32, row_iterator.next().?.elements, &.{ 3.0, 4.0 });
-    try t.expectEqual(row_iterator.next(), null);
-}
-
-test "Swap two rows" {
-    var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    var m = Matrix(f32).fromSlice(2, 2, &m_e);
-
-    m.swapRows(0, 1);
-    try t.expectEqualSlices(f32, m.elements, &.{ 3.0, 4.0, 1.0, 2.0 });
-}
-
-test "Shuffle matrix" {
-    var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
-    var m = Matrix(f32).fromSlice(2, 2, &m_e);
-
-    try m.shuffleRows();
-    try t.expectEqualSlices(f32, &.{ 3.0, 4.0, 1.0, 2.0 }, m.elements);
-}
-
-test "Split matrix on row" {
-    var m_e = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0 };
-    var m = Matrix(f32).fromSlice(5, 1, &m_e);
-
-    const low, const high = m.splitOnRow(2);
-
-    try t.expectEqualSlices(f32, low.elements, &.{ 1.0, 2.0 });
-    try t.expectEqual(low.rows, 2);
-
-    try t.expectEqualSlices(f32, high.elements, &.{ 3.0, 4.0, 5.0 });
-    try t.expectEqual(high.rows, 3);
-}
-
-test "Allocate matrix and initalize with zeros" {
-    var m = try Matrix(f32).init(t.allocator, 1, 2, .zeros);
-    defer m.deinit(t.allocator);
-
-    try t.expectEqual(m.rows, 1);
-    try t.expectEqual(m.columns, 2);
-    try t.expectEqualSlices(f32, m.elements, &.{ 0.0, 0.0 });
-}
-
-test "Allocate matrix and initalize with random numbers" {
-    var m = try Matrix(f32).init(t.allocator, 1, 2, .rand);
-    defer m.deinit(t.allocator);
-
-    try t.expectEqual(m.rows, 1);
-    try t.expectEqual(m.columns, 2);
-    for (m.elements) |e| {
-        try t.expect(e >= 0 and e < 1);
     }
 }
 
-test "Allocate matrix and initalize it from slice" {
-    const data = [_]f32{ 2.0, 3.0 };
+test "mul()" {
+    // [ 1 2 3 ]   [ 7  8  ]   [ 58  64  ]
+    // [ 4 5 6 ] * [ 9  10 ] = [ 139 154 ]
+    //             [ 11 12 ]
+    const a = try Matrix(f32).fromSlice(tst.allocator, .{ 2, 3 }, &.{ 1, 2, 3, 4, 5, 6 });
+    defer a.deinit(tst.allocator);
 
-    var m = try Matrix(f32).initFromSlice(t.allocator, 1, 2, &data);
-    defer m.deinit(t.allocator);
+    const b = try Matrix(f32).fromSlice(tst.allocator, .{ 3, 2 }, &.{ 7, 8, 9, 10, 11, 12 });
+    defer b.deinit(tst.allocator);
 
-    try t.expectEqual(m.rows, 1);
-    try t.expectEqual(m.columns, 2);
-    try t.expectEqualSlices(f32, m.elements, &data);
+    var r = try Matrix(f32).init(tst.allocator, .{ 2, 2 });
+    defer r.deinit(tst.allocator);
+
+    mul(f32, a, b, &r);
+
+    try tst.expectEqualSlices(f32, &.{ 58, 64, 139, 154 }, r.elements);
 }
 
-test "Transpose matrix elements" {
-    const data = [_]f32{
-        1.0, 2.0, 3.0,
-        4.0, 5.0, 6.0,
+pub fn row(comptime T: type, mat: *Matrix(T), r: usize) Matrix(T) {
+    const rows, const cols = mat.shape;
+    assert(r < rows);
+    const offset = r * cols;
+    return Matrix(T).fromBuffer(.{ 1, cols }, mat.elements[offset .. offset + cols]);
+}
+
+test "row()" {
+    var mat = try Matrix(f32).fromSlice(tst.allocator, .{ 2, 3 }, &.{ 1, 2, 3, 4, 5, 6 });
+    defer mat.deinit(tst.allocator);
+
+    const first_row = row(f32, &mat, 0);
+    try tst.expectEqual(.{ 1, 3 }, first_row.shape);
+    try tst.expectEqualSlices(f32, &.{ 1, 2, 3 }, first_row.elements[0..3]);
+
+    const second_row = row(f32, &mat, 1);
+    try tst.expectEqual(.{ 1, 3 }, second_row.shape);
+    try tst.expectEqualSlices(f32, &.{ 4, 5, 6 }, second_row.elements);
+}
+
+pub fn swapRows(comptime T: type, mat: *Matrix(T), a: usize, b: usize) void {
+    assert(a < mat.shape[0]);
+    assert(b < mat.shape[0]);
+    const cols = mat.shape[1];
+    for (mat.elements[a * cols ..][0..cols], mat.elements[b * cols ..][0..cols]) |*x, *y| {
+        const tmp = x.*;
+        x.* = y.*;
+        y.* = tmp;
+    }
+}
+
+test "swapRows()" {
+    var data = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    var mat = Matrix(f32).fromBuffer(.{ 3, 2 }, &data);
+
+    swapRows(f32, &mat, 0, 2);
+    try tst.expectEqualSlices(f32, &.{ 5, 6, 3, 4, 1, 2 }, mat.elements);
+}
+
+/// Split a matrix into two at the given row. Returns two non-owning views:
+/// the first contains rows [0, row), the second contains rows [row, rows).
+pub fn split(comptime T: type, mat: *Matrix(T), r: usize) struct { Matrix(T), Matrix(T) } {
+    assert(r < mat.shape[0]);
+    const cols = mat.shape[1];
+    const divider = r * cols;
+    return .{
+        Matrix(T).fromBuffer(.{ r, cols }, mat.elements[0..divider]),
+        Matrix(T).fromBuffer(.{ mat.shape[0] - r, cols }, mat.elements[divider..]),
     };
-
-    var m = try Matrix(f32).initFromSlice(t.allocator, 2, 3, &data);
-    defer m.deinit(t.allocator);
-
-    const transpose = try m.allocTranspose(t.allocator);
-    defer transpose.deinit(t.allocator);
-
-    try t.expectEqualSlices(f32, transpose.elements, &.{
-        1.0, 4.0,
-        2.0, 5.0,
-        3.0, 6.0,
-    });
 }
 
-test "Copy elements from other matrix" {
-    var a = try Matrix(f32).init(t.allocator, 1, 2, .zeros);
-    defer a.deinit(t.allocator);
+test "split()" {
+    var data = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    var mat = Matrix(f32).fromBuffer(.{ 3, 2 }, &data);
 
-    var b = try Matrix(f32).init(t.allocator, 1, 2, .rand);
-    defer b.deinit(t.allocator);
+    const top, const bottom = split(f32, &mat, 1);
 
-    a.copy(b);
-    try t.expectEqualSlices(f32, a.elements, b.elements);
+    try tst.expectEqual(.{ 1, 2 }, top.shape);
+    try tst.expectEqualSlices(f32, &.{ 1, 2 }, top.elements);
+
+    try tst.expectEqual(.{ 2, 2 }, bottom.shape);
+    try tst.expectEqualSlices(f32, &.{ 3, 4, 5, 6 }, bottom.elements);
 }
 
-test "Invert sign of matrix elements" {
-    var data = [_]f32{ 1.0, -2.0, 3.0 };
-    var m = Matrix(f32).fromSlice(1, 3, &data);
-
-    m.negative();
-    try t.expectEqualSlices(f32, m.elements, &.{ -1.0, 2.0, -3.0 });
+/// Transpose a matrix. Writes into a pre-allocated result matrix.
+pub fn transpose(comptime T: type, mat: Matrix(T), res: *Matrix(T)) void {
+    assert(mat.shape[0] == res.shape[1]);
+    assert(mat.shape[1] == res.shape[0]);
+    const rows, const cols = mat.shape;
+    for (0..rows) |r| {
+        for (0..cols) |c| {
+            res.set(.{ c, r }, mat.get(.{ r, c }));
+        }
+    }
 }
 
-test "Check if Matrix has same dimension as other" {
-    var a = try Matrix(f32).init(t.allocator, 1, 2, .zeros);
-    defer a.deinit(t.allocator);
+test "transpose()" {
+    const mat = try Matrix(f32).fromSlice(tst.allocator, .{ 2, 3 }, &.{ 1, 2, 3, 4, 5, 6 });
+    defer mat.deinit(tst.allocator);
 
-    var b = try Matrix(f32).init(t.allocator, 2, 2, .zeros);
-    defer b.deinit(t.allocator);
+    var res = try Matrix(f32).init(tst.allocator, .{ 3, 2 });
+    defer res.deinit(tst.allocator);
 
-    try t.expect(a.sameDimAs(a));
-    try t.expect(!a.sameDimAs(b));
+    transpose(f32, mat, &res);
+    try tst.expectEqualSlices(f32, &.{ 1, 4, 2, 5, 3, 6 }, res.elements);
+}
+
+/// Set a row of a matrix from a row matrix.
+pub fn setRow(comptime T: type, mat: *Matrix(T), r: usize, data: Matrix(T)) void {
+    assert(r < mat.shape[0]);
+    assert(data.shape[1] == mat.shape[1]);
+    const cols = mat.shape[1];
+    const start = r * cols;
+    @memcpy(mat.elements[start..][0..cols], data.elements[0..cols]);
+}
+
+test "setRow()" {
+    var data = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    var mat = Matrix(f32).fromBuffer(.{ 3, 2 }, &data);
+
+    var row_data = [_]f32{ 9, 8 };
+    const r = Matrix(f32).fromBuffer(.{ 1, 2 }, &row_data);
+
+    setRow(f32, &mat, 1, r);
+    try tst.expectEqualSlices(f32, &.{ 1, 2, 9, 8, 5, 6 }, mat.elements);
+}
+
+pub fn argmax(comptime T: type, mat: Matrix(T)) usize {
+    const rows, const cols = mat.shape;
+    assert(rows == 1 or cols == 1);
+
+    var val_max: T = mat.elements[0];
+    var idx: usize = 0;
+    for (mat.elements[1..], 1..) |e, i| {
+        if (e > val_max) {
+            val_max = e;
+            idx = i;
+        }
+    }
+    return idx;
+}
+
+test "argmax()" {
+    var mat = try Matrix(f32).fromSlice(tst.allocator, .{ 1, 6 }, &.{ 1, 2, 3, 4, 5, 6 });
+    defer mat.deinit(tst.allocator);
+
+    try tst.expectEqual(argmax(f32, mat), 5);
 }
